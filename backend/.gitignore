@@ -1,0 +1,14 @@
+node_modules
+dist
+
+# Environment — never commit real secrets
+.env
+
+# Prisma generated
+/generated/prisma
+
+# Test coverage reports
+coverage/
+
+# TypeScript build info
+*.tsbuildinfo

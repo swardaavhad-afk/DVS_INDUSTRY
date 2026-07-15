@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────────────────────
+// Authentication & Authorization
+// ───────────────────────────────────────────────────────────────
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  fullName  String
+  email     String    @unique
+  password  String
+  phone     String?
+  roleId    Int
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  role          Role           @relation(fields: [roleId], references: [id])
+  refreshTokens RefreshToken[]
+
+  // One-to-One Employee Profile
+  employee Employee?
+
+  @@index([roleId])
+  @@index([email])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ───────────────────────────────────────────────────────────────
+// Workforce
+// ───────────────────────────────────────────────────────────────
+
+model Department {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  code        String    @unique
+  description String?
+  managerId   Int?
+  isActive    Boolean   @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employees Employee[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model Shift {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  startTime    String
+  endTime      String
+  isNightShift Boolean  @default(false)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employees Employee[]
+}
+
+model Employee {
+  id Int @id @default(autoincrement())
+
+  // Identity
+  employeeCode String  @unique
+  firstName    String
+  lastName     String
+  email        String? @unique
+  phone        String?
+  gender       Gender?
+
+  dateOfBirth DateTime?
+  joiningDate DateTime
+
+  // Employment
+  designation    String
+  employmentType EmploymentType @default(FULL_TIME)
+  salary         Decimal?       @db.Decimal(10, 2)
+
+  // Department
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // Shift
+  shiftId Int?
+  shift   Shift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  // Reporting Manager
+  managerId Int?
+  manager   Employee? @relation("EmployeeManager", fields: [managerId], references: [id])
+
+  subordinates Employee[] @relation("EmployeeManager")
+
+  // ERP Login
+  userId Int?  @unique
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Status
+  status EmployeeStatus @default(ACTIVE)
+
+  profileImage String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+  country String?
+  pincode String?
+
+  // Emergency Contact
+  emergencyName  String?
+  emergencyPhone String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  attendances Attendance[]
+
+  @@index([employeeCode])
+  @@index([email])
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([shiftId])
+  @@index([status])
+}
+
+model Attendance {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date DateTime
+
+  clockIn  DateTime?
+  clockOut DateTime?
+
+  workingHours Float?
+
+  status AttendanceStatus
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+// ───────────────────────────────────────────────────────────────
+// ENUMS
+// ───────────────────────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LATE
+  LEAVE
+}
