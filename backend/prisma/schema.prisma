@@ -265,6 +265,123 @@ model ScrapRecord {
 }
 
 // ───────────────────────────────────────────────────────────────
+// Orders
+// ───────────────────────────────────────────────────────────────
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  code        String   @unique
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String  @default("India")
+  gstin       String?
+  rating      Decimal? @db.Decimal(3, 1)   // 0.0 – 5.0
+  leadTimeDays Int?
+  reliability  String?                      // "98%", "99%" etc.
+  materials   String?                       // comma-separated material names
+  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model Client {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  code        String   @unique
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String  @default("India")
+  gstin       String?
+  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clientOrders ClientOrder[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model ClientOrder {
+  id           Int               @id @default(autoincrement())
+  orderNumber  String            @unique            // e.g. ORD-2841
+  clientId     Int
+  client       Client            @relation(fields: [clientId], references: [id])
+
+  product       String
+  quantity      Int
+  unit          String           @default("pcs")
+  value         Decimal?         @db.Decimal(14, 2)
+  currency      String           @default("INR")
+
+  orderDate     DateTime         @default(now())
+  requiredDate  DateTime?
+  dispatchDate  DateTime?
+  deliveryDate  DateTime?
+
+  status        ClientOrderStatus @default(PENDING)
+
+  notes         String?
+  dispatchNote  String?
+  challanNumber String?
+  invoiceNumber String?
+
+  createdById   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([orderDate])
+  @@index([orderNumber])
+}
+
+model PurchaseOrder {
+  id           Int                 @id @default(autoincrement())
+  poNumber     String              @unique            // e.g. PO-2847
+  supplierId   Int
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+
+  material     String
+  quantity     String                                 // e.g. "500 kg"
+  unit         String?
+  totalCost    Decimal?            @db.Decimal(14, 2)
+  currency     String              @default("INR")
+
+  orderDate     DateTime           @default(now())
+  expectedDelivery DateTime?
+  actualDelivery   DateTime?
+
+  status        PurchaseOrderStatus @default(PENDING)
+
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([orderDate])
+  @@index([poNumber])
+}
+
+// ───────────────────────────────────────────────────────────────
 // ENUMS
 // ───────────────────────────────────────────────────────────────
 
@@ -302,4 +419,21 @@ enum StockTransactionType {
   ADJUSTMENT  // Manual correction
   SCRAP       // Scrap write-off
   RETURN      // Returned to supplier / store
+}
+
+enum ClientOrderStatus {
+  PENDING
+  APPROVED
+  IN_PRODUCTION
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  PENDING
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
 }

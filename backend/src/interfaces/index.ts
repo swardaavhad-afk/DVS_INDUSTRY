@@ -3,3 +3,4 @@ export * from './auth.interface';
 export * from './department.interface';
 export * from './employee.interface';
 export * from './inventory.interface';
+export * from './orders.interface';
