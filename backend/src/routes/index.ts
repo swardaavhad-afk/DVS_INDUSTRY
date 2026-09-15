@@ -3,6 +3,7 @@ import { API_PREFIX } from '../constants';
 import authRouter from './auth.routes';
 import departmentRouter from './department.routes';
 import employeeRouter from './employee.routes';
+import inventoryRouter from './inventory.routes';
 
 const router = Router();
 
@@ -10,6 +11,7 @@ const router = Router();
 router.use(`${API_PREFIX}/auth`, authRouter);
 router.use(`${API_PREFIX}/departments`, departmentRouter);
 router.use(`${API_PREFIX}/employees`, employeeRouter);
+router.use(`${API_PREFIX}/inventory`, inventoryRouter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 router.get(`${API_PREFIX}/health`, (_req, res) => {

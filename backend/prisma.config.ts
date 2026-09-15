@@ -13,6 +13,6 @@ export default defineConfig({
   },
   seed: {
     // Runs via: npx prisma db seed  OR  npm run db:seed
-    run: "ts-node --transpile-only prisma/seed.ts",
+    run: "tsx prisma/seed.ts",
   },
 });
