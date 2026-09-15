@@ -4,3 +4,4 @@ export * from './department.interface';
 export * from './employee.interface';
 export * from './inventory.interface';
 export * from './orders.interface';
+export * from './reports.interface';
