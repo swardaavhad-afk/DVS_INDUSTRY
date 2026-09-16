@@ -382,6 +382,226 @@ model PurchaseOrder {
 }
 
 // ───────────────────────────────────────────────────────────────
+// Production
+// ───────────────────────────────────────────────────────────────
+
+model WorkOrder {
+  id              Int               @id @default(autoincrement())
+  workOrderNumber String            @unique            // e.g. WO-0042
+
+  // What to produce
+  product         String
+  targetQuantity  Decimal           @db.Decimal(12, 3)
+  unit            String            @default("pcs")
+
+  // Scheduling
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+
+  // Tracking
+  status          WorkOrderStatus   @default(DRAFT)
+  priority        WorkOrderPriority @default(NORMAL)
+
+  // Links
+  departmentId    Int?
+  departmentName  String?
+  assignedToId    Int?              // Employee (supervisor)
+  assignedToName  String?
+  clientOrderId   Int?              // Optional link to a ClientOrder
+
+  notes           String?
+
+  createdById     Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  outputs         WorkOrderOutput[]
+
+  @@index([workOrderNumber])
+  @@index([status])
+  @@index([priority])
+  @@index([departmentId])
+  @@index([scheduledStart])
+  @@index([clientOrderId])
+}
+
+model WorkOrderOutput {
+  id          Int       @id @default(autoincrement())
+  workOrderId Int
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  // Quantities
+  goodQty     Decimal   @db.Decimal(12, 3)   // accepted output
+  rejectedQty Decimal   @default(0) @db.Decimal(12, 3)
+  scrapQty    Decimal   @default(0) @db.Decimal(12, 3)
+
+  recordedAt  DateTime  @default(now())
+
+  // Who recorded it
+  recordedById   Int?
+  recordedByName String?
+
+  remarks     String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workOrderId])
+  @@index([recordedAt])
+}
+// ───────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Security
+// ───────────────────────────────────────────────────────────────
+
+model SecurityIncident {
+  id             Int                    @id @default(autoincrement())
+  incidentNumber String                 @unique            // e.g. INC-0001
+
+  title          String
+  description    String
+  type           IncidentType
+  severity       IncidentSeverity       @default(MEDIUM)
+  status         IncidentStatus         @default(OPEN)
+
+  // Location / scope
+  location       String?
+  departmentId   Int?
+  departmentName String?
+
+  // People
+  reportedById   Int?
+  reportedByName String?
+  assignedToId   Int?
+  assignedToName String?
+
+  // Timing
+  occurredAt     DateTime               @default(now())
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+
+  // Investigation
+  rootCause      String?
+  correctiveAction String?
+
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  deletedAt      DateTime?
+
+  updates        IncidentUpdate[]
+  alerts         SecurityAlert[]
+
+  @@index([incidentNumber])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([departmentId])
+  @@index([occurredAt])
+}
+
+model IncidentUpdate {
+  id         Int              @id @default(autoincrement())
+  incidentId Int
+  incident   SecurityIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  comment    String
+  statusChange IncidentStatus?   // null means no status change, just a comment
+
+  updatedById   Int?
+  updatedByName String?
+
+  createdAt  DateTime         @default(now())
+
+  @@index([incidentId])
+  @@index([createdAt])
+}
+
+model SecurityAlert {
+  id             Int                @id @default(autoincrement())
+  alertNumber    String             @unique            // e.g. ALT-0001
+
+  title          String
+  message        String
+  type           AlertType
+  severity       IncidentSeverity   @default(MEDIUM)
+  status         AlertStatus        @default(ACTIVE)
+
+  // Source
+  source         String?            // e.g. "CCTV", "Manual", "Sensor"
+  location       String?
+  departmentId   Int?
+  departmentName String?
+
+  // Link to incident (optional)
+  incidentId     Int?
+  incident       SecurityIncident?  @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  // Acknowledgement
+  acknowledgedById   Int?
+  acknowledgedByName String?
+  acknowledgedAt     DateTime?
+
+  // Resolution
+  resolvedById   Int?
+  resolvedByName String?
+  resolvedAt     DateTime?
+
+  expiresAt      DateTime?          // auto-expire time for time-bound alerts
+
+  createdById    Int?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([alertNumber])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([departmentId])
+  @@index([incidentId])
+  @@index([createdAt])
+}
+
+// ───────────────────────────────────────────────────────────────
+// Audit Log
+// ───────────────────────────────────────────────────────────────
+model AuditLog {
+  id         Int            @id @default(autoincrement())
+
+  // Who
+  userId     Int?
+  userEmail  String?
+  userRole   String?
+
+  // What
+  action     AuditAction
+  entity     String                      // e.g. "Employee", "WorkOrder"
+  entityId   String?                     // string to handle any PK type
+  entityCode String?                     // human-readable ref (e.g. EMP-001)
+
+  // Request metadata
+  method     String?                     // HTTP method
+  path       String?                     // URL path
+  statusCode Int?
+
+  // Diff snapshot (optional — only for write operations)
+  before     Json?
+  after      Json?
+
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ───────────────────────────────────────────────────────────────
 // ENUMS
 // ───────────────────────────────────────────────────────────────
 
@@ -436,4 +656,74 @@ enum PurchaseOrderStatus {
   IN_TRANSIT
   DELIVERED
   CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  STATUS_CHANGE
+  BULK_ACTION
+}
+
+enum WorkOrderStatus {
+  DRAFT        // Created but not yet released
+  RELEASED     // Released to production floor
+  IN_PROGRESS  // Production has started
+  ON_HOLD      // Paused
+  COMPLETED    // Production finished
+  CANCELLED
+}
+
+enum WorkOrderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum IncidentType {
+  FIRE
+  THEFT
+  INJURY
+  PROPERTY_DAMAGE
+  UNAUTHORIZED_ACCESS
+  EQUIPMENT_FAILURE
+  CHEMICAL_SPILL
+  NEAR_MISS
+  OTHER
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+enum AlertType {
+  SAFETY
+  SECURITY
+  MAINTENANCE
+  FIRE
+  INTRUSION
+  ENVIRONMENTAL
+  CUSTOM
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+  EXPIRED
 }
