@@ -31,6 +31,23 @@ export default defineConfig({
     },
   },
 
+  // Proxy /api requests to the backend dev server
+  server: {
+    proxy: {
+      '/api': {
+        target:      'http://localhost:3000',
+        changeOrigin: true,
+        secure:       false,
+      },
+      // Also proxy /uploads (profile images served by backend)
+      '/uploads': {
+        target:      'http://localhost:3000',
+        changeOrigin: true,
+        secure:       false,
+      },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
