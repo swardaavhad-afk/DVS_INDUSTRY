@@ -12,3 +12,7 @@ coverage/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Uploaded user files — only keep the empty placeholder
+uploads/profiles/*
+!uploads/profiles/.gitkeep

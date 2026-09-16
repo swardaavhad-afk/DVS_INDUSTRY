@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { validateRequest } from '../middleware/validateRequest';
 import { authenticate } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
+import { uploadProfileImage } from '../utils/upload';
 import * as EmployeeController from '../controllers/employee.controller';
 import {
   createEmployeeSchema,
@@ -194,6 +195,21 @@ router.patch(
     body: assignShiftSchema,
   }),
   asyncHandler(EmployeeController.assignShift),
+);
+
+/**
+ * POST /api/v1/employees/:id/profile-image
+ * Upload or replace an employee's profile photo.
+ * Content-Type: multipart/form-data, field name: "image"
+ * Accepts: JPEG, PNG, WebP — max 5 MB
+ * Access: ADMIN, HR
+ */
+router.post(
+  '/:id/profile-image',
+  authorize(...WRITE_ROLES),
+  validateRequest({ params: employeeIdParamSchema }),
+  uploadProfileImage,                          // multer middleware
+  asyncHandler(EmployeeController.uploadProfileImage),
 );
 
 export default router;

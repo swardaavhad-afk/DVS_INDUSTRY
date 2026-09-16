@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { EmployeeService } from '../services/employee.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/response';
+import { BadRequestError } from '../errors';
+import { profileImageUrl, deleteUploadedFile } from '../utils/upload';
 import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
@@ -224,4 +226,27 @@ export async function getStatistics(
 ): Promise<void> {
   const stats = await employeeService.statistics();
   sendSuccess(res, stats);
+}
+
+// ── Upload Profile Image ───────────────────────────────────────────────────
+
+export async function uploadProfileImage(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const id = parseInt(String(req.params['id'] ?? '0'), 10);
+
+  if (!req.file) {
+    throw new BadRequestError('No image file provided. Use field name "image".');
+  }
+
+  // Delete previous profile image if stored
+  const existing = await employeeService.getById(id);
+  if (existing.profileImage) {
+    deleteUploadedFile(existing.profileImage);
+  }
+
+  const imageUrl = profileImageUrl(req.file.filename);
+  const employee = await employeeService.updateProfileImage(id, imageUrl);
+  sendSuccess(res, employee, 200, 'Profile image updated successfully');
 }

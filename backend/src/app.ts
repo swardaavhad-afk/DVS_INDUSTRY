@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -57,6 +58,15 @@ app.use(cookieParser());
 
 // ── Request logging ────────────────────────────────────────────────────────
 app.use(requestLogger);
+
+// ── Static file serving — uploaded assets ─────────────────────────────────
+app.use(
+  '/uploads',
+  express.static(path.resolve(process.cwd(), 'uploads'), {
+    maxAge: '7d',
+    etag:   true,
+  }),
+);
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use(router);

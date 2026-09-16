@@ -9,7 +9,7 @@ export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
-export interface ShiftDto {
+export interface EmployeeShiftRef {
   id: number;
   name: string;
   startTime: string;
@@ -58,7 +58,7 @@ export interface EmployeeDto {
   createdAt: Date;
   updatedAt: Date;
   department: DepartmentRefDto | null;
-  shift: ShiftDto | null;
+  shift: EmployeeShiftRef | null;
   manager: EmployeeManagerDto | null;
   userId: number | null;
 }

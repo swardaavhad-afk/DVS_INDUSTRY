@@ -278,6 +278,18 @@ export class EmployeeService {
     return employee;
   }
 
+  // ── Update Profile Image ─────────────────────────────────────────────────
+
+  async updateProfileImage(id: number, imageUrl: string): Promise<EmployeeDto> {
+    const existing = await this.getByIdOrThrow(id);
+    if (existing.deletedAt !== null) {
+      throw new BadRequestError('Cannot update a deleted employee.');
+    }
+    const employee = await this.repo.update(id, { profileImage: imageUrl });
+    logger.info('Employee profile image updated', { id });
+    return employee;
+  }
+
   // ── Statistics ────────────────────────────────────────────────────────────
 
   async statistics(): Promise<EmployeeStatistics> {
