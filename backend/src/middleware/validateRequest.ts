@@ -30,8 +30,9 @@ export function validateRequest(schemas: {
         req.params = (await schemas.params.parseAsync(req.params)) as typeof req.params;
       }
       if (schemas.query !== undefined) {
-        // Cast required — Zod parse result is more specific than Express's ParsedQs
-        req.query = (await schemas.query.parseAsync(req.query)) as typeof req.query;
+        const parsed = (await schemas.query.parseAsync(req.query)) as typeof req.query;
+        // Express 5 makes req.query a getter — use Object.assign to merge parsed values
+        Object.assign(req.query, parsed);
       }
       next();
     } catch (err) {
