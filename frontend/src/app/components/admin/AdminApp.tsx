@@ -147,7 +147,7 @@ const orderSections = new Set(["orders", "orders-client", "orders-supplier", "or
 type UserRole = "admin" | "production" | "quality" | "store";
 
 interface AdminAppProps {
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   userRole: UserRole;
 }
 

@@ -5,12 +5,14 @@ import { LoginPage } from "./components/LoginPage";
 import { AdminApp } from "./components/admin/AdminApp";
 import { SupplierApp } from "./components/supplier/SupplierApp";
 import { ClientApp } from "./components/client/ClientApp";
+import { logout as apiLogout } from "../lib/auth";
+import type { FrontendRole } from "../lib/auth";
 
-type Page = "home" | "login" | "admin" | "supplier" | "client" | "production" | "quality" | "store";
+type Page = "home" | "login" | FrontendRole;
 type Role = "admin" | "supplier" | "client" | "production" | "quality" | "store";
 
 export default function App() {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPage]           = useState<Page>("home");
   const [loginRole, setLoginRole] = useState<Role>("admin");
 
   const goToLogin = (role: Role = "admin") => {
@@ -18,11 +20,12 @@ export default function App() {
     setPage("login");
   };
 
-  const handleLoginSuccess = (role: Role) => {
+  const handleLoginSuccess = (role: FrontendRole) => {
     setPage(role);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await apiLogout();
     setPage("home");
   };
 
@@ -37,12 +40,12 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess}
         />
       )}
-      {page === "admin" && <AdminApp onLogout={handleLogout} userRole="admin" />}
+      {page === "admin"      && <AdminApp onLogout={handleLogout} userRole="admin" />}
       {page === "production" && <AdminApp onLogout={handleLogout} userRole="production" />}
-      {page === "quality" && <AdminApp onLogout={handleLogout} userRole="quality" />}
-      {page === "store" && <AdminApp onLogout={handleLogout} userRole="store" />}
-      {page === "supplier" && <SupplierApp onLogout={handleLogout} />}
-      {page === "client" && <ClientApp onLogout={handleLogout} />}
+      {page === "quality"    && <AdminApp onLogout={handleLogout} userRole="quality" />}
+      {page === "store"      && <AdminApp onLogout={handleLogout} userRole="store" />}
+      {page === "supplier"   && <SupplierApp onLogout={handleLogout} />}
+      {page === "client"     && <ClientApp  onLogout={handleLogout} />}
     </>
   );
 }

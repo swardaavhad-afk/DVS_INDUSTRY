@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Camera, AlertTriangle, CheckCircle2, Clock, Eye, Download, Filter,
   RefreshCw, User, Shield, MapPin, Zap,
@@ -8,6 +8,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
 } from "recharts";
 import { PageHeader, Card, CardHeader, StatusBadge, Btn, DataTable, TabBar, KPICard } from "../shared/UI";
+import {
+  getSecurityKPIs, getIncidents, getAlerts,
+  transitionIncidentStatus, acknowledgeAlert, resolveAlert, deleteAlert,
+  type SecurityKPIs, type SecurityIncidentDto, type SecurityAlertDto,
+} from "../../../lib/services/security.service";
 
 const cameras = [
   { id: "CAM-01", location: "Main Gate", status: "online", zone: "Entry", detections: 14, alert: false },
@@ -20,7 +25,7 @@ const cameras = [
   { id: "CAM-08", location: "Canteen Area", status: "online", zone: "Common", detections: 0, alert: false },
 ];
 
-const incidents = [
+const incidents_static = [
   { id: "INC-2841", date: "12 Jun", time: "09:14", location: "Zone B, CAM-03", type: "PPE Violation", confidence: "94.2%", status: "open", severity: "high", assigned: "Guard R. Kumar", action: "Under Review" },
   { id: "INC-2840", date: "12 Jun", time: "08:47", location: "Gate 3, CAM-06", type: "Unauthorized Entry", confidence: "97.8%", status: "investigating", severity: "critical", assigned: "Mgr. V. Sharma", action: "CCTV Review" },
   { id: "INC-2839", date: "12 Jun", time: "08:30", location: "Zone A, CAM-02", type: "Missing Helmet", confidence: "91.5%", status: "resolved", severity: "medium", assigned: "Guard S. Patel", action: "Warning Issued" },
@@ -35,6 +40,15 @@ const alertTrend = [
   { day: "Wed", ppe: 11, unauth: 3, crowd: 2 },
   { day: "Thu", ppe: 5, unauth: 0, crowd: 1 },
   { day: "Fri", ppe: 7, unauth: 2, crowd: 4 },
+];
+
+const incidents_fallback = [
+  { id: "INC-2841", date: "12 Jun", time: "09:14", location: "Zone B, CAM-03", type: "PPE Violation", confidence: "94.2%", status: "open", severity: "high", assigned: "Guard R. Kumar", action: "Under Review", _id: 0 },
+  { id: "INC-2840", date: "12 Jun", time: "08:47", location: "Gate 3, CAM-06", type: "Unauthorized Entry", confidence: "97.8%", status: "investigating", severity: "critical", assigned: "Mgr. V. Sharma", action: "CCTV Review", _id: 0 },
+  { id: "INC-2839", date: "12 Jun", time: "08:30", location: "Zone A, CAM-02", type: "Missing Helmet", confidence: "91.5%", status: "resolved", severity: "medium", assigned: "Guard S. Patel", action: "Warning Issued", _id: 0 },
+  { id: "INC-2838", date: "11 Jun", time: "16:22", location: "Restricted R1", type: "Restricted Zone Entry", confidence: "99.1%", status: "resolved", severity: "critical", assigned: "Mgr. V. Sharma", action: "Employee Counselled", _id: 0 },
+  { id: "INC-2837", date: "11 Jun", time: "14:10", location: "Zone D, CAM-08", type: "Crowd Formation", confidence: "86.3%", status: "resolved", severity: "low", assigned: "Guard P. Nair", action: "Dispersed", _id: 0 },
+  { id: "INC-2836", date: "11 Jun", time: "11:45", location: "Zone B, CAM-03", type: "Missing Safety Vest", confidence: "92.7%", status: "resolved", severity: "medium", assigned: "Guard R. Kumar", action: "Warning Issued", _id: 0 },
 ];
 
 const resolutionTrend = [
@@ -53,10 +67,86 @@ const detectionTypes = [
 ];
 
 export function SecurityPage() {
-  const [tab, setTab] = useState("live");
+  const [tab, setTab]       = useState("live");
   const [filter, setFilter] = useState("all");
 
-  const filteredIncidents = filter === "all" ? incidents : incidents.filter((i) => i.status === filter);
+  // ── API state ──────────────────────────────────────────────────────────────
+  const [kpis,      setKpis]      = useState<SecurityKPIs | null>(null);
+  const [incidents, setIncidents] = useState<SecurityIncidentDto[]>([]);
+  const [alerts,    setAlerts]    = useState<SecurityAlertDto[]>([]);
+  const [loading,   setLoading]   = useState(true);
+
+  const loadAll = () => {
+    setLoading(true);
+    Promise.all([
+      getSecurityKPIs().catch(() => null),
+      getIncidents({ pageSize: 50, sortBy: "occurredAt", sortOrder: "desc" }).catch(() => null),
+      getAlerts({ pageSize: 50, sortBy: "createdAt", sortOrder: "desc" }).catch(() => null),
+    ]).then(([kpiRes, incRes, altRes]) => {
+      if (kpiRes) setKpis(kpiRes);
+      if (incRes) setIncidents(incRes.data);
+      if (altRes) setAlerts(altRes.data);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { loadAll(); }, []);
+
+  // ── Derived data (use real API if available, else fallback static) ──────────
+  const displayIncidents = incidents.length > 0
+    ? incidents.map(i => ({
+        id: i.incidentNumber,
+        date: new Date(i.occurredAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+        time: new Date(i.occurredAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+        location: i.location ?? "—",
+        type: i.type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+        confidence: "—",
+        status: i.status.toLowerCase().replace("_", "-"),
+        severity: i.severity.toLowerCase(),
+        assigned: i.assignedToName ?? "Unassigned",
+        action: "",
+        _id: i.id,
+      }))
+    : incidents_fallback;
+
+  const filteredIncidents = filter === "all"
+    ? displayIncidents
+    : displayIncidents.filter(i => i.status === filter || i.status.startsWith(filter));
+
+  // KPI numbers
+  const totalAlerts    = kpis?.totalAlerts   ?? 6;
+  const activeAlerts   = kpis?.activeAlerts  ?? 3;
+  const resolvedToday  = kpis?.resolvedThisMonth ?? 9;
+  const criticalInc    = kpis?.criticalIncidents ?? 2;
+
+  // Alert trend — from incidentTrend
+  const alertTrendData = kpis?.incidentTrend?.map(e => ({
+    day: e.date, ppe: e.count, unauth: 0, crowd: 0,
+  })) ?? alertTrend;
+
+  const handleAcknowledge = async (alertId: number) => {
+    try {
+      await acknowledgeAlert(alertId);
+      toast.success("Alert acknowledged");
+      loadAll();
+    } catch { toast.error("Failed to acknowledge alert"); }
+  };
+
+  const handleResolveAlert = async (alertId: number) => {
+    try {
+      await resolveAlert(alertId);
+      toast.success("Alert resolved");
+      loadAll();
+    } catch { toast.error("Failed to resolve alert"); }
+  };
+
+  const handleTransitionIncident = async (incId: number, status: "INVESTIGATING" | "RESOLVED" | "CLOSED") => {
+    try {
+      await transitionIncidentStatus(incId, status);
+      toast.success(`Incident moved to ${status}`);
+      loadAll();
+    } catch { toast.error("Failed to update incident"); }
+  };
 
   return (
     <div className="p-6">
@@ -65,7 +155,7 @@ export function SecurityPage() {
         subtitle="YOLO-based real-time detection — PPE compliance, unauthorized access, unusual activity"
         actions={
           <div className="flex gap-2">
-            <Btn variant="secondary" size="sm"><RefreshCw size={14} /> Refresh</Btn>
+            <Btn variant="secondary" size="sm" onClick={loadAll}><RefreshCw size={14} /> Refresh</Btn>
             <Btn size="sm"><Download size={14} /> Export Report</Btn>
           </div>
         }
@@ -73,9 +163,9 @@ export function SecurityPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <KPICard label="Cameras Online" value="7/8" trend="87.5%" trendDir="flat" icon={Camera} accent="#2E7D32" />
-        <KPICard label="Active Alerts" value="3" sub="2 critical" icon={AlertTriangle} accent="#C0392B" />
-        <KPICard label="Resolved Today" value="9" trend="+3 vs yesterday" trendDir="up" icon={CheckCircle2} accent="#2E7D32" />
-        <KPICard label="Detection Rate" value="96.4%" trend="AI confidence" trendDir="up" icon={Zap} accent="#1565C0" />
+        <KPICard label="Active Alerts"  value={String(activeAlerts)} sub={`${criticalInc} critical`} icon={AlertTriangle} accent="#C0392B" />
+        <KPICard label="Resolved Today" value={String(resolvedToday)} trend="+3 vs yesterday" trendDir="up" icon={CheckCircle2} accent="#2E7D32" />
+        <KPICard label="Total Incidents" value={String(kpis?.totalIncidents ?? 6)} sub={`${kpis?.openIncidents ?? 2} open`} icon={Zap} accent="#1565C0" />
       </div>
 
       <TabBar
@@ -92,6 +182,28 @@ export function SecurityPage() {
         {/* ── LIVE MONITORING ── */}
         {tab === "live" && (
           <div>
+            {/* Live Alerts banner */}
+            {alerts.filter(a => a.status === "ACTIVE").length > 0 && (
+              <div className="mb-5 flex flex-col gap-2">
+                {alerts.filter(a => a.status === "ACTIVE").slice(0, 3).map(a => (
+                  <div key={a.id} className="flex items-center gap-3 px-5 py-3 rounded-xl"
+                    style={{ background: a.severity === "CRITICAL" ? "#FFEBEE" : "#FFF8E1", border: `1px solid ${a.severity === "CRITICAL" ? "#FFCDD2" : "#FFE082"}` }}>
+                    <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: a.severity === "CRITICAL" ? "#C0392B" : "#E65100" }} />
+                    <div className="flex-1">
+                      <p style={{ fontSize: "0.8375rem", fontWeight: 600, color: "#1C1C1C" }}>{a.alertNumber} — {a.title}</p>
+                      <p style={{ fontSize: "0.72rem", color: "#9A8A88" }}>{a.location ?? a.type} · {new Date(a.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                    <StatusBadge status={a.severity.toLowerCase()} />
+                    <div className="flex gap-1.5">
+                      {a.status === "ACTIVE" && (
+                        <button onClick={() => handleAcknowledge(a.id)} className="px-2.5 py-1 rounded-md text-xs font-semibold" style={{ background: "#E3F2FD", color: "#1565C0", border: "none", cursor: "pointer" }}>Acknowledge</button>
+                      )}
+                      <button onClick={() => handleResolveAlert(a.id)} className="px-2.5 py-1 rounded-md text-xs font-semibold" style={{ background: "#E8F5E9", color: "#2E7D32", border: "none", cursor: "pointer" }}>Resolve</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Camera grid */}
             <Card className="mb-5">
               <CardHeader title="Camera Grid" subtitle="8 cameras — real-time status" actions={<Btn size="sm" variant="secondary"><Eye size={13} /> Full Screen</Btn>} />
@@ -181,7 +293,7 @@ export function SecurityPage() {
                 <CardHeader title="Alert Trend" subtitle="This week by type" />
                 <div className="p-5">
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={alertTrend}>
+                    <BarChart data={alertTrendData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0ECEB" />
                       <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />

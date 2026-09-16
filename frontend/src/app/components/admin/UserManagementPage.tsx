@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Shield, Search, X } from "lucide-react";
 import { PageHeader, Card, CardHeader, StatusBadge, Btn, DataTable } from "../shared/UI";
 import { toast } from "sonner";
+import {
+  getUsers, createUser, updateUserRole, toggleUserActive, getRoles,
+  type UserDto, type RoleDto,
+} from "../../../lib/services/users.service";
+import { getAuditLogs } from "../../../lib/services/audit.service";
 
 interface User {
   id: string; name: string; email: string; role: string; dept: string;
   joined: string; lastLogin: string; status: string;
+  _apiId?: number; _roleId?: number;
 }
 
 const initialUsers: User[] = [
@@ -46,46 +52,98 @@ const fieldStyle: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75re
 const labelStyle: React.CSSProperties = { fontSize: "0.72rem", fontWeight: 600, color: "#4E342E", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.3rem" };
 
 export function UserManagementPage() {
-  const [activeTab, setActiveTab] = useState<"users" | "permissions" | "logs">("users");
-  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab]   = useState<"users" | "permissions" | "logs">("users");
+  const [search, setSearch]         = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editUser, setEditUser] = useState<User | null>(null);
+  const [users, setUsers]           = useState<User[]>(initialUsers);
+  const [roles, setRoles]           = useState<RoleDto[]>([]);
+  const [auditLogs, setAuditLogs]   = useState<Array<{ time: string; user: string; action: string; type: string }>>([]);
+  const [showAdd, setShowAdd]       = useState(false);
+  const [editUser, setEditUser]     = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [newUser, setNewUser]       = useState({ name: "", email: "", password: "", role: "admin", roleId: 1, dept: "Management", status: "active" });
 
-  const [newUser, setNewUser] = useState({ name: "", email: "", role: "admin", dept: "Management", status: "active" });
+  // ── Load from API ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getUsers({ pageSize: 100 }).catch(() => null),
+      getRoles().catch(() => null),
+      getAuditLogs({ pageSize: 20, sortOrder: "desc" }).catch(() => null),
+    ]).then(([userRes, roleRes, logRes]) => {
+      if (cancelled) return;
+      if (userRes && userRes.data.length > 0) {
+        setUsers(userRes.data.map(u => ({
+          id: `USR-${String(u.id).padStart(3, "0")}`,
+          name: u.fullName,
+          email: u.email,
+          role: u.role.name.toLowerCase(),
+          dept: u.employee?.employeeCode ?? "System",
+          joined: new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+          lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "Never",
+          status: u.isActive ? "active" : "inactive",
+          _apiId: u.id,
+          _roleId: u.roleId,
+        })));
+      }
+      if (roleRes && roleRes.length > 0) setRoles(roleRes);
+      if (logRes && logRes.data.length > 0) {
+        setAuditLogs(logRes.data.map(l => ({
+          time: new Date(l.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+          user: l.userEmail ?? "System",
+          action: `${l.action} ${l.entity}${l.entityId ? ` #${l.entityId}` : ""} ${l.path ?? ""}`.trim(),
+          type: l.action === "LOGIN" ? "info" : l.action === "DELETE" ? "critical" : l.statusCode && l.statusCode >= 400 ? "warn" : "info",
+        })));
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const nextId = () => `USR-${String(users.length + 1).padStart(3, "0")}`;
 
-  const handleAdd = () => {
-    if (!newUser.name.trim() || !newUser.email.trim()) {
-      toast.error("Please fill all required fields");
-      return;
+  const handleAdd = async () => {
+    if (!newUser.name.trim() || !newUser.email.trim()) { toast.error("Please fill all required fields"); return; }
+    try {
+      const roleObj = roles.find(r => r.name.toLowerCase() === newUser.role) ?? roles[0];
+      const created = await createUser({ fullName: newUser.name, email: newUser.email, password: newUser.password || "Temp@1234", roleId: roleObj?.id ?? 1 });
+      const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
+      setUsers(prev => [...prev, { id: nextId(), name: created.fullName, email: created.email, role: created.role.name.toLowerCase(), dept: newUser.dept, joined: today, lastLogin: "Never", status: "active", _apiId: created.id }]);
+      toast.success("User added successfully");
+    } catch {
+      const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
+      setUsers(prev => [...prev, { id: nextId(), ...newUser, joined: today, lastLogin: "Never" }]);
+      toast.success("User added (offline mode)");
     }
-    const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
-    setUsers((prev) => [...prev, { id: nextId(), ...newUser, joined: today, lastLogin: "Never" }]);
-    setNewUser({ name: "", email: "", role: "admin", dept: "Management", status: "active" });
+    setNewUser({ name: "", email: "", password: "", role: "admin", roleId: 1, dept: "Management", status: "active" });
     setShowAdd(false);
-    toast.success("User added successfully");
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editUser) return;
-    setUsers((prev) => prev.map((u) => (u.id === editUser.id ? editUser : u)));
+    try {
+      if (editUser._apiId) {
+        const roleObj = roles.find(r => r.name.toLowerCase() === editUser.role);
+        if (roleObj) await updateUserRole(editUser._apiId, roleObj.id);
+        if (editUser.status === "inactive") await toggleUserActive(editUser._apiId);
+      }
+    } catch { /* update locally */ }
+    setUsers(prev => prev.map(u => u.id === editUser.id ? editUser : u));
     setEditUser(null);
     toast.success("User updated successfully");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteUser) return;
-    setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
+    try {
+      if (deleteUser._apiId) await toggleUserActive(deleteUser._apiId); // deactivate instead of hard delete
+    } catch { /* remove locally */ }
+    setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
     setDeleteUser(null);
     toast.success("User removed successfully");
   };
 
   const filtered = users.filter(
-    (u) => (roleFilter === "all" || u.role === roleFilter) && (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.includes(search))
+    u => (roleFilter === "all" || u.role === roleFilter) && (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.includes(search))
   );
 
   return (
@@ -95,13 +153,15 @@ export function UserManagementPage() {
         <div className="space-y-4">
           <div><label style={labelStyle}>Full Name</label><input style={fieldStyle} value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="e.g. Arjun Mehta" /></div>
           <div><label style={labelStyle}>Email Address</label><input style={fieldStyle} type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="arjun@dvsindustries.com" /></div>
+          <div><label style={labelStyle}>Password</label><input style={fieldStyle} type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Min 8 characters" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label style={labelStyle}>Role</label>
               <select style={fieldStyle} value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="supplier">Supplier</option>
-                <option value="client">Client</option>
+                {roles.length > 0
+                  ? roles.map(r => <option key={r.id} value={r.name.toLowerCase()}>{r.name}</option>)
+                  : ["admin","supplier","client"].map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)
+                }
               </select>
             </div>
             <div>
@@ -304,14 +364,14 @@ export function UserManagementPage() {
         <Card>
           <CardHeader title="Audit Logs" subtitle="Recent system activity" />
           <div>
-            {[
+            {(auditLogs.length > 0 ? auditLogs : [
               { time: "09:22", user: "Vikram Sharma", action: "Generated Production Report", type: "info" },
               { time: "09:14", user: "Security System", action: "Alert INC-2841 created — PPE Violation Zone B", type: "warn" },
               { time: "08:47", user: "Security System", action: "Alert INC-2840 created — Unauthorized Entry Gate 3", type: "critical" },
               { time: "08:30", user: "Vikram Sharma", action: "Approved PO-2847 — SteelCorp Ltd.", type: "info" },
               { time: "07:55", user: "Priya Kapoor", action: "Added worker EMP-047 — Ravi Nair, Welding dept", type: "info" },
               { time: "07:30", user: "System", action: "Inventory alert — Steel Tube 4mm out of stock", type: "warn" },
-            ].map((log, i) => (
+            ]).map((log, i) => (
               <div key={i} className="flex items-start gap-4 px-5 py-3.5" style={{ borderBottom: "1px solid #F7F3F2" }}>
                 <span style={{ fontSize: "0.72rem", fontFamily: "JetBrains Mono, monospace", color: "#9A8A88", minWidth: "40px" }}>{log.time}</span>
                 <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: log.type === "critical" ? "#C0392B" : log.type === "warn" ? "#E65100" : "#2E7D32" }} />

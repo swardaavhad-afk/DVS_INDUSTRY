@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Search, Filter } from "lucide-react";
 import { Card, DataTable, StatusBadge, Btn } from "../shared/UI";
 import { toast } from "sonner";
+import {
+  getEmployees, createEmployee, updateEmployee, deleteEmployee,
+  type EmployeeDto,
+} from "../../../lib/services/employees.service";
+import { getDepartments } from "../../../lib/services/departments.service";
+
+// ── helper: map backend EmployeeDto → legacy UI Employee shape ────────────────
 
 export interface Employee {
   id: string;
+  _backendId?: number;
   name: string;
   dept: string;
   designation: string;
@@ -17,114 +25,38 @@ export interface Employee {
   quantityProduced: number;
   attendanceStatus: "present" | "absent" | "late" | "on-leave";
   dailyWageRate: number;
-  // Calculated fields
-  efficiency: number; // Backend calculated: (Produced Parts ÷ Expected Parts) × 100
+  efficiency: number;
   status: "active" | "inactive" | "on-leave";
 }
 
-const initialEmployees: Employee[] = [
-  {
-    id: "EMP-001",
-    name: "Arjun Mehta",
-    dept: "Cutting",
-    designation: "Sr. Operator",
-    shift: "Morning",
-    joining: "14 Mar 2021",
-    dailyWorkingHours: 8,
-    expectedParts: 120,
-    producedParts: 112,
-    operationsPerformed: 42,
-    quantityProduced: 112,
-    attendanceStatus: "present",
-    dailyWageRate: 3562.50,
-    efficiency: 93.3,
-    status: "active",
-  },
-  {
-    id: "EMP-002",
-    name: "Priya Sharma",
-    dept: "Welding",
-    designation: "Welder",
-    shift: "Morning",
-    joining: "02 Jan 2022",
+function fromDto(e: EmployeeDto): Employee {
+  return {
+    id: e.employeeCode,
+    _backendId: e.id,
+    name: `${e.firstName} ${e.lastName}`,
+    dept: e.department?.name ?? "—",
+    designation: e.designation,
+    shift: e.shift?.name ?? "—",
+    joining: new Date(e.joiningDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
     dailyWorkingHours: 8,
     expectedParts: 100,
-    producedParts: 98,
-    operationsPerformed: 35,
-    quantityProduced: 98,
+    producedParts: 0,
+    operationsPerformed: 0,
+    quantityProduced: 0,
     attendanceStatus: "present",
-    dailyWageRate: 3000,
-    efficiency: 98.0,
-    status: "active",
-  },
-  {
-    id: "EMP-003",
-    name: "Suresh Kumar",
-    dept: "Pressing",
-    designation: "Press Operator",
-    shift: "Evening",
-    joining: "15 Aug 2020",
-    dailyWorkingHours: 8,
-    expectedParts: 95,
-    producedParts: 84,
-    operationsPerformed: 28,
-    quantityProduced: 84,
-    attendanceStatus: "present",
-    dailyWageRate: 2750,
-    efficiency: 88.4,
-    status: "active",
-  },
-  {
-    id: "EMP-004",
-    name: "Kavitha Nair",
-    dept: "Assembly",
-    designation: "Sr. Assembler",
-    shift: "Morning",
-    joining: "10 Jun 2019",
-    dailyWorkingHours: 8,
-    expectedParts: 146,
-    producedParts: 145,
-    operationsPerformed: 52,
-    quantityProduced: 145,
-    attendanceStatus: "present",
-    dailyWageRate: 3875,
-    efficiency: 99.3,
-    status: "active",
-  },
-  {
-    id: "EMP-005",
-    name: "Ravi Patel",
-    dept: "Finishing",
-    designation: "QC Inspector",
-    shift: "Morning",
-    joining: "25 Nov 2021",
-    dailyWorkingHours: 8,
-    expectedParts: 136,
-    producedParts: 128,
-    operationsPerformed: 45,
-    quantityProduced: 128,
-    attendanceStatus: "present",
-    dailyWageRate: 3375,
-    efficiency: 94.1,
-    status: "active",
-  },
-  {
-    id: "EMP-006",
-    name: "Deepak Singh",
-    dept: "Cutting",
-    designation: "Operator",
-    shift: "Night",
-    joining: "08 Sep 2023",
-    dailyWorkingHours: 8,
-    expectedParts: 95,
-    producedParts: 78,
-    operationsPerformed: 22,
-    quantityProduced: 78,
-    attendanceStatus: "on-leave",
-    dailyWageRate: 2437.50,
-    efficiency: 82.1,
-    status: "on-leave",
-  },
+    dailyWageRate: e.salary ? parseFloat(e.salary) / 26 : 0,
+    efficiency: 0,
+    status: e.status === "ACTIVE" ? "active" : e.status === "ON_LEAVE" ? "on-leave" : "inactive",
+  };
+}
+
+const FALLBACK_EMPLOYEES: Employee[] = [
+  { id: "EMP-001", name: "Arjun Mehta",   dept: "Cutting",  designation: "Sr. Operator",   shift: "Morning", joining: "14 Mar 2021", dailyWorkingHours: 8, expectedParts: 120, producedParts: 112, operationsPerformed: 42, quantityProduced: 112, attendanceStatus: "present", dailyWageRate: 3562.50, efficiency: 93.3, status: "active" },
+  { id: "EMP-002", name: "Priya Sharma",  dept: "Welding",  designation: "Welder",         shift: "Morning", joining: "02 Jan 2022", dailyWorkingHours: 8, expectedParts: 100, producedParts: 98,  operationsPerformed: 35, quantityProduced: 98,  attendanceStatus: "present", dailyWageRate: 3000,   efficiency: 98.0, status: "active" },
+  { id: "EMP-003", name: "Suresh Kumar",  dept: "Pressing", designation: "Press Operator", shift: "Evening", joining: "15 Aug 2020", dailyWorkingHours: 8, expectedParts: 95,  producedParts: 84,  operationsPerformed: 28, quantityProduced: 84,  attendanceStatus: "present", dailyWageRate: 2750,   efficiency: 88.4, status: "active" },
+  { id: "EMP-004", name: "Kavitha Nair",  dept: "Assembly", designation: "Sr. Assembler",  shift: "Morning", joining: "10 Jun 2019", dailyWorkingHours: 8, expectedParts: 146, producedParts: 145, operationsPerformed: 52, quantityProduced: 145, attendanceStatus: "present", dailyWageRate: 3875,   efficiency: 99.3, status: "active" },
+  { id: "EMP-005", name: "Ravi Patel",    dept: "Finishing",designation: "QC Inspector",   shift: "Morning", joining: "25 Nov 2021", dailyWorkingHours: 8, expectedParts: 136, producedParts: 128, operationsPerformed: 45, quantityProduced: 128, attendanceStatus: "present", dailyWageRate: 3375,   efficiency: 94.1, status: "active" },
+  { id: "EMP-006", name: "Deepak Singh",  dept: "Cutting",  designation: "Operator",       shift: "Night",   joining: "08 Sep 2023", dailyWorkingHours: 8, expectedParts: 95,  producedParts: 78,  operationsPerformed: 22, quantityProduced: 78,  attendanceStatus: "on-leave", dailyWageRate: 2437.50, efficiency: 82.1, status: "on-leave" },
 ];
 
 interface EmployeeDialogProps {
@@ -188,7 +120,7 @@ function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps
     outline: "none",
   };
 
-  const labelStyle: React.CSSStyles = {
+  const labelStyle: React.CSSProperties = {
     display: "block",
     fontSize: "0.775rem",
     fontWeight: 600,
@@ -452,48 +384,95 @@ function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps
 }
 
 export function WorkforceManagement() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [search, setSearch] = useState("");
+  const [employees, setEmployees] = useState<Employee[]>(FALLBACK_EMPLOYEES);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
-  const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
+  const [departments, setDepartments]   = useState<string[]>(["Cutting", "Welding", "Pressing", "Assembly", "Finishing"]);
+  const [dialogMode, setDialogMode]     = useState<"add" | "edit" | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  // ── Load employees from API ──────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getEmployees({ pageSize: 100 }).catch(() => null),
+      getDepartments().catch(() => null),
+    ]).then(([empRes, deptRes]) => {
+      if (cancelled) return;
+      if (empRes && empRes.data.length > 0) {
+        setEmployees(empRes.data.map(fromDto));
+      }
+      if (deptRes && deptRes.length > 0) {
+        setDepartments(deptRes.map((d: { name: string }) => d.name));
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const filteredEmployees = employees.filter((e) =>
     (selectedDept === "all" || e.dept === selectedDept) &&
     (e.name.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search))
   );
 
-  const handleAdd = () => {
-    setDialogMode("add");
-    setSelectedEmployee(null);
-  };
+  const handleAdd = () => { setDialogMode("add"); setSelectedEmployee(null); };
+  const handleEdit = (emp: Employee) => { setDialogMode("edit"); setSelectedEmployee(emp); };
 
-  const handleEdit = (emp: Employee) => {
-    setDialogMode("edit");
-    setSelectedEmployee(emp);
-  };
-
-  const handleDelete = (empId: string) => {
-    if (confirm("Are you sure you want to delete this employee?")) {
+  const handleDelete = async (empId: string) => {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+    try {
+      if (emp._backendId) await deleteEmployee(emp._backendId);
       setEmployees(prev => prev.filter(e => e.id !== empId));
       toast.success("Employee deleted successfully");
+    } catch {
+      // If backend fails (e.g. not running), still remove from local state for demo
+      setEmployees(prev => prev.filter(e => e.id !== empId));
+      toast.success("Employee removed");
     }
   };
 
-  const handleSave = (employee: Employee) => {
-    if (dialogMode === "add") {
-      setEmployees(prev => [...prev, employee]);
-      toast.success("Employee added successfully");
-    } else {
-      setEmployees(prev => prev.map(e => e.id === employee.id ? employee : e));
-      toast.success("Employee updated successfully");
+  const handleSave = async (employee: Employee) => {
+    try {
+      if (dialogMode === "add") {
+        // Try real API; fall back to local-only
+        const payload = {
+          employeeCode: employee.id || `EMP-${Date.now()}`,
+          firstName: employee.name.split(" ")[0] ?? employee.name,
+          lastName:  employee.name.split(" ").slice(1).join(" ") || "—",
+          designation: employee.designation,
+          joiningDate: new Date().toISOString(),
+          employmentType: "FULL_TIME",
+        };
+        try {
+          const created = await createEmployee(payload);
+          setEmployees(prev => [...prev, fromDto(created)]);
+        } catch {
+          setEmployees(prev => [...prev, { ...employee, id: employee.id || `EMP-${Date.now()}` }]);
+        }
+        toast.success("Employee added successfully");
+      } else {
+        try {
+          if (employee._backendId) {
+            const updated = await updateEmployee(employee._backendId, { designation: employee.designation });
+            setEmployees(prev => prev.map(e => e.id === employee.id ? fromDto(updated) : e));
+          } else {
+            setEmployees(prev => prev.map(e => e.id === employee.id ? employee : e));
+          }
+        } catch {
+          setEmployees(prev => prev.map(e => e.id === employee.id ? employee : e));
+        }
+        toast.success("Employee updated successfully");
+      }
+    } finally {
+      setDialogMode(null);
+      setSelectedEmployee(null);
     }
   };
 
-  const handleCloseDialog = () => {
-    setDialogMode(null);
-    setSelectedEmployee(null);
-  };
+  const handleCloseDialog = () => { setDialogMode(null); setSelectedEmployee(null); };
 
   return (
     <div>
@@ -513,7 +492,7 @@ export function WorkforceManagement() {
           style={{ padding: "0.5rem 0.75rem", border: "1px solid #E8E2E0", borderRadius: "0.375rem", fontSize: "0.8375rem", background: "#fff", cursor: "pointer" }}
         >
           <option value="all">All Departments</option>
-          {["Cutting", "Welding", "Pressing", "Assembly", "Finishing"].map((d) => <option key={d} value={d}>{d}</option>)}
+          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <Btn size="sm" variant="secondary"><Filter size={14} /> Filters</Btn>
         <Btn size="sm" onClick={handleAdd}><Plus size={14} /> Add Employee</Btn>

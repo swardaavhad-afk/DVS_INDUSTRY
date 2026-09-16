@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { PageHeader, KPICard, Card, CardHeader, Btn, DataTable, TabBar } from "../shared/UI";
 import { WorkforceManagement } from "./WorkforceManagement";
+import { getProductionKPIs, getWorkOrders, transitionStatus, type ProductionKPIs, type WorkOrderDto } from "../../../lib/services/production.service";
 
 const companyPerf = {
   today: { expected: 420, actual: 401, efficiency: 95.5, attendance: 97.0, scrap: 4.3, loss: 19, target: 95.5 },
@@ -55,12 +56,29 @@ const aiReco = [
 ];
 
 export function ProductionPage() {
-  const [tab, setTab] = useState("performance");
-  const [period, setPeriod] = useState<"today" | "week" | "month">("today");
+  const [tab, setTab]         = useState("performance");
+  const [period, setPeriod]   = useState<"today" | "week" | "month">("today");
   const [syncStatus, setSyncStatus] = useState<"synced" | "syncing" | "error">("synced");
-  const [lastSync] = useState("Today, 08:47 AM");
+  const [lastSync]            = useState("Today, 08:47 AM");
   const [workerSearch, setWorkerSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
+
+  // ── API state ──────────────────────────────────────────────────────────────
+  const [kpis, setKpis]       = useState<ProductionKPIs | null>(null);
+  const [workOrders, setWorkOrders] = useState<WorkOrderDto[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getProductionKPIs().catch(() => null),
+      getWorkOrders({ pageSize: 20, status: 'all', sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => null),
+    ]).then(([kpiRes, woRes]) => {
+      if (cancelled) return;
+      if (kpiRes) setKpis(kpiRes);
+      if (woRes)  setWorkOrders(woRes.data);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSync = () => {
     setSyncStatus("syncing");
@@ -121,11 +139,38 @@ export function ProductionPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-              <KPICard label="Expected Production" value={perf.expected.toLocaleString()} sub="units" />
-              <KPICard label="Actual Production" value={perf.actual.toLocaleString()} sub="units" trend={`${(perf.efficiency).toFixed(1)}% efficiency`} trendDir="up" accent="#2E7D32" />
-              <KPICard label="Target Achievement" value={`${((perf.actual / perf.expected) * 100).toFixed(1)}%`} accent="#1565C0" />
-              <KPICard label="Scrap Generated" value={`${perf.scrap}%`} sub={`₹${perf.loss.toLocaleString()} loss`} accent="#E65100" trendDir="down" />
+              <KPICard label="Active Work Orders"    value={kpis ? String(kpis.activeWorkOrders)    : String(perf.expected)} sub={kpis ? `${kpis.completedThisMonth} completed this month` : "units"} />
+              <KPICard label="Produced (This Month)" value={kpis ? kpis.totalProducedQty : String(perf.actual)} trend={kpis ? kpis.overallCompletionRate : `${perf.efficiency.toFixed(1)}%`} trendDir="up" accent="#2E7D32" />
+              <KPICard label="Completion Rate"       value={kpis ? kpis.overallCompletionRate : `${((perf.actual / perf.expected) * 100).toFixed(1)}%`} accent="#1565C0" />
+              <KPICard label="Rejection Rate"        value={kpis ? kpis.rejectionRate : `${perf.scrap}%`} sub={kpis ? `${kpis.overdueWorkOrders} overdue WOs` : `₹${perf.loss.toLocaleString()} loss`} accent="#E65100" trendDir="down" />
             </div>
+
+            {/* Live Work Orders table from API */}
+            {workOrders.length > 0 && (
+              <Card className="mb-5">
+                <CardHeader title="Recent Work Orders" subtitle={`${workOrders.length} orders loaded`} />
+                <DataTable
+                  columns={[
+                    { key: "wo", label: "WO #" }, { key: "product", label: "Product" },
+                    { key: "dept", label: "Department" }, { key: "target", label: "Target" },
+                    { key: "produced", label: "Produced" }, { key: "rate", label: "Completion" },
+                    { key: "priority", label: "Priority" }, { key: "status", label: "Status" },
+                  ]}
+                  rows={workOrders.map((wo) => ({
+                    wo: <span style={{ fontSize: "0.775rem", fontFamily: "JetBrains Mono, monospace", color: "#A52A2A", fontWeight: 600 }}>{wo.workOrderNumber}</span>,
+                    product: <span style={{ fontWeight: 500, fontSize: "0.8rem" }}>{wo.product}</span>,
+                    dept: <span style={{ fontSize: "0.8rem" }}>{wo.departmentName ?? "—"}</span>,
+                    target: <span style={{ fontSize: "0.8rem" }}>{wo.targetQuantity} {wo.unit}</span>,
+                    produced: <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{wo.producedQty}</span>,
+                    rate: <span style={{ fontSize: "0.8rem", fontWeight: 700, color: parseFloat(wo.completionRate) >= 90 ? "#2E7D32" : "#E65100" }}>{wo.completionRate}</span>,
+                    priority: <span className="px-2 py-0.5 rounded-full" style={{ fontSize: "0.68rem", fontWeight: 600, background: wo.priority === "URGENT" ? "#FFEBEE" : wo.priority === "HIGH" ? "#FFF3E0" : "#F5F5F5", color: wo.priority === "URGENT" ? "#C0392B" : wo.priority === "HIGH" ? "#E65100" : "#7A6C6A" }}>{wo.priority}</span>,
+                    status: <span className="px-2 py-0.5 rounded-full" style={{ fontSize: "0.68rem", fontWeight: 600, background: wo.status === "COMPLETED" ? "#E8F5E9" : wo.status === "IN_PROGRESS" ? "#FFF3E0" : "#F5F5F5", color: wo.status === "COMPLETED" ? "#2E7D32" : wo.status === "IN_PROGRESS" ? "#E65100" : "#7A6C6A" }}>{wo.status.replace("_", " ")}</span>,
+                  }))}
+                  paginate={8}
+                  searchable
+                />
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
               <Card>
@@ -273,7 +318,7 @@ export function ProductionPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-              <KPICard label="Present Today" value="347" trend="97.0%" trendDir="up" accent="#2E7D32" />
+              <KPICard label="Present Today" value={kpis ? String(kpis.activeWorkOrders > 0 ? "Live" : "347") : "347"} trend="97.0%" trendDir="up" accent="#2E7D32" />
               <KPICard label="Absent" value="4" accent="#C0392B" />
               <KPICard label="Late Arrival" value="7" accent="#E65100" />
               <KPICard label="On Leave" value="7" accent="#1565C0" />

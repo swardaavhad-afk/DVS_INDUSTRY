@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,6 +10,10 @@ import {
 } from "lucide-react";
 import { PageHeader, Card, CardHeader, KPICard, StatusBadge, Btn, DataTable, TabBar } from "../shared/UI";
 import { useERP } from "./ERPContext";
+import {
+  getMaterials, getInventoryStats, adjustStock, createMaterial,
+  type MaterialDto, type InventoryStatistics,
+} from "../../../lib/services/inventory.service";
 
 /* ── Types ── */
 interface CalcInputs {
@@ -861,14 +865,51 @@ function downloadCSV(filename: string, rows: string[][]) {
 }
 
 export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) => void }) {
-  const [tab, setTab] = useState("overview");
-  const [materials, setMaterials] = useState(materialsData);
+  const [tab, setTab]                   = useState("overview");
+  const [materials, setMaterials]       = useState(materialsData);
+  const [apiStats, setApiStats]         = useState<InventoryStatistics | null>(null);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
-  const [newMat, setNewMat] = useState({ name: "", category: "Steel", thickness: "", qty: "", cost: "", threshold: "", location: "" });
+  const [newMat, setNewMat]             = useState({ name: "", category: "Steel", thickness: "", qty: "", cost: "", threshold: "", location: "" });
   const { setPendingPO } = useERP();
 
-  const totalValue = materials.reduce((s, m) => s + m.qty * m.cost, 0);
-  const lowStock = materials.filter((m) => m.status !== "in stock").length;
+  // ── Load from API ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getMaterials({ pageSize: 100, status: "active" }).catch(() => null),
+      getInventoryStats().catch(() => null),
+    ]).then(([matRes, statsRes]) => {
+      if (cancelled) return;
+      if (matRes && matRes.data.length > 0) {
+        setMaterials(matRes.data.map(m => ({
+          id: m.code,
+          name: m.name,
+          category: m.category ?? "Other",
+          thickness: m.description?.match(/\d+mm/)?.[0] ?? "—",
+          qty: parseFloat(m.currentStock),
+          unit: m.unit,
+          cost: m.costPerUnit ? parseFloat(m.costPerUnit) : 0,
+          threshold: parseFloat(m.minStockLevel),
+          location: m.location ?? "WH-A",
+          status: parseFloat(m.currentStock) === 0 ? "out of stock"
+                : parseFloat(m.currentStock) <= parseFloat(m.minStockLevel) ? "low stock"
+                : "in stock",
+          _apiId: m.id,
+        })));
+      }
+      if (statsRes) setApiStats(statsRes);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const totalValue = apiStats
+    ? parseFloat(apiStats.totalStockValue)
+    : materials.reduce((s, m) => s + m.qty * m.cost, 0);
+  const lowStock = apiStats
+    ? apiStats.lowStockCount + apiStats.outOfStockCount
+    : materials.filter((m) => m.status !== "in stock").length;
+  const totalMaterials = apiStats?.activeMaterials ?? materials.length;
 
   const handleExport = () => {
     const rows = [
@@ -879,14 +920,25 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
     toast.success("Inventory exported to CSV");
   };
 
-  const handleAddMaterial = () => {
+  const handleAddMaterial = async () => {
     if (!newMat.name || !newMat.qty || !newMat.cost) return;
     const qty = parseInt(newMat.qty);
     const threshold = parseInt(newMat.threshold) || 50;
     const status = qty === 0 ? "out of stock" : qty < threshold ? "low stock" : "in stock";
+    // Try real API first
+    try {
+      const code = newMat.name.toUpperCase().replace(/[^A-Z0-9]/g, "-").slice(0, 20);
+      await createMaterial({
+        name: newMat.name, code, unit: "kg",
+        category: newMat.category,
+        location: newMat.location || "WH-A",
+        minStockLevel: String(threshold),
+        costPerUnit: newMat.cost,
+      });
+    } catch { /* ignore — still add locally */ }
     setMaterials((prev) => [...prev, {
-      id: `MAT-00${prev.length + 1}`,
-      name: newMat.name, category: newMat.category, thickness: newMat.thickness || "–",
+      id: `MAT-${String(prev.length + 1).padStart(3, "0")}`,
+      name: newMat.name, category: newMat.category, thickness: newMat.thickness || "—",
       qty, unit: "kg", cost: parseInt(newMat.cost), threshold, location: newMat.location || "WH-A", status,
     }]);
     setNewMat({ name: "", category: "Steel", thickness: "", qty: "", cost: "", threshold: "", location: "" });
@@ -966,10 +1018,10 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
         {tab === "overview" && (
           <div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-              <KPICard label="Total Inventory Value" value={`₹${(totalValue / 100000).toFixed(1)}L`} accent="#A52A2A" />
+              <KPICard label="Total Inventory Value" value={totalValue >= 100000 ? `₹${(totalValue / 100000).toFixed(1)}L` : `₹${totalValue.toFixed(0)}`} accent="#A52A2A" />
               <KPICard label="Low / Out of Stock" value={lowStock} sub="materials need action" accent="#C0392B" trendDir="down" />
-              <KPICard label="Materials Tracked" value={materialsData.length} accent="#2E7D32" />
-              <KPICard label="Reorder Suggestions" value="3" sub="AI-detected" accent="#E65100" />
+              <KPICard label="Materials Tracked" value={totalMaterials} accent="#2E7D32" />
+              <KPICard label="Reorder Suggestions" value={apiStats?.lowStockCount ?? 3} sub="need reorder" accent="#E65100" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">

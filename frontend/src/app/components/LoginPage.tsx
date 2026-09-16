@@ -4,6 +4,8 @@ import {
   Mail, User, ChevronRight, AlertCircle, CheckCircle2, Factory,
   Users, PackageCheck, ShoppingCart,
 } from "lucide-react";
+import { login as apiLogin, type FrontendRole } from "../../lib/auth";
+import api from "../../lib/api";
 
 type Role = "admin" | "supplier" | "client" | "production" | "quality" | "store";
 type AuthMode = "login" | "signup" | "forgot";
@@ -11,7 +13,7 @@ type AuthMode = "login" | "signup" | "forgot";
 interface LoginPageProps {
   initialRole?: Role;
   onNavigateHome: () => void;
-  onLoginSuccess: (role: Role) => void;
+  onLoginSuccess: (role: FrontendRole) => void;
 }
 
 const roles = [
@@ -140,15 +142,18 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
     setError(""); setSuccess("");
     if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    const expected = mockUsers[selectedRole];
-    if (email === expected.email && password === expected.password) {
-      setSuccess(`Authenticated. Loading ${role.label} dashboard...`);
-      setTimeout(() => onLoginSuccess(selectedRole), 800);
-    } else {
-      setError("Invalid email or password. Please try again.");
+    try {
+      const { user, frontendRole } = await apiLogin(email, password);
+      setSuccess(`Authenticated. Loading ${user.fullName.split(" ")[0]}'s dashboard…`);
+      setTimeout(() => onLoginSuccess(frontendRole), 800);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err
+        ? (err as { message: string }).message
+        : "Invalid email or password. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignup = async () => {
@@ -157,18 +162,32 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
     if (password !== confirmPw) { setError("Passwords do not match."); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setSuccess("Account request submitted. Awaiting DVS Industries admin approval. You will receive a confirmation email within 24 hours.");
-    setLoading(false);
+    try {
+      await api.post("/auth/register", { fullName: name, email, password });
+      setSuccess("Account request submitted. Awaiting DVS Industries admin approval. You will receive a confirmation email within 24 hours.");
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err
+        ? (err as { message: string }).message
+        : "Registration failed. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgot = async () => {
     setError(""); setSuccess("");
     if (!email) { setError("Please enter your registered email address."); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSuccess(`Password reset link sent to ${email}. Please check your inbox.`);
-    setLoading(false);
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setSuccess(`Password reset link sent to ${email}. Please check your inbox.`);
+    } catch {
+      // Always show success for security (don't reveal whether email exists)
+      setSuccess(`If ${email} is registered, a reset link has been sent.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputBase: React.CSSProperties = {
