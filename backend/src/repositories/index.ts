@@ -5,3 +5,4 @@ export { DepartmentRepository } from './department.repository';
 export { EmployeeRepository } from './employee.repository';
 export { InventoryRepository } from './inventory.repository';
 export { OrdersRepository } from './orders.repository';
+export { WorkforceRepository } from './workforce.repository';

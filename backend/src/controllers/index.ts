@@ -1,6 +1,10 @@
 export * as AuthController from './auth.controller';
+export * as AuditController from './audit.controller';
 export * as DepartmentController from './department.controller';
 export * as EmployeeController from './employee.controller';
 export * as InventoryController from './inventory.controller';
 export * as OrdersController from './orders.controller';
+export * as ProductionController from './production.controller';
 export * as ReportsController from './reports.controller';
+export * as SecurityController from './security.controller';
+export * as WorkforceController from './workforce.controller';
