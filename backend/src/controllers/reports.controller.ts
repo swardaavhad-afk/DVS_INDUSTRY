@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import { ReportsService } from '../services/reports.service';
 import { sendSuccess } from '../utils/response';
-import type { ReportQueryInput } from '../validators/reports.validator';
-import type { ReportFilters } from '../interfaces';
+import type { ReportQueryInput, AttendanceReportQueryInput } from '../validators/reports.validator';
+import type { ReportFilters, AttendanceReportFilters } from '../interfaces';
 
 const svc = new ReportsService();
 
@@ -71,4 +71,23 @@ export async function getClientReport(req: Request, res: Response): Promise<void
   const q = req.query as unknown as ReportQueryInput;
   const report = await svc.getClientReport(buildFilters(q));
   sendSuccess(res, report, 200, 'Client report generated');
+}
+
+export async function getAttendanceReport(req: Request, res: Response): Promise<void> {
+  const q = req.query as unknown as AttendanceReportQueryInput;
+  const filters: AttendanceReportFilters = {
+    ...(q.fromDate !== undefined     && { fromDate: q.fromDate }),
+    ...(q.toDate !== undefined       && { toDate: q.toDate }),
+    ...(q.departmentId !== undefined && { departmentId: q.departmentId }),
+    sortBy:    q.sortBy,
+    sortOrder: q.sortOrder,
+  };
+  const report = await svc.getAttendanceReport(filters);
+  sendSuccess(res, report, 200, 'Attendance report generated');
+}
+
+export async function getProductionReport(req: Request, res: Response): Promise<void> {
+  const q = req.query as unknown as ReportQueryInput;
+  const report = await svc.getProductionReport(buildFilters(q));
+  sendSuccess(res, report, 200, 'Production report generated');
 }

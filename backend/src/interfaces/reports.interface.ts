@@ -10,6 +10,13 @@ export interface DashboardKPIs {
   totalEmployees: number;
   activeEmployees: number;
 
+  // Attendance (today)
+  attendanceTodayPresent: number;
+  attendanceTodayAbsent: number;
+  attendanceTodayLate: number;
+  attendanceTodayOnLeave: number;
+  attendanceTodayRate: string;     // e.g. "91.3%"
+
   // Inventory
   totalMaterials: number;
   lowStockCount: number;
@@ -26,6 +33,12 @@ export interface DashboardKPIs {
   // Scrap
   totalScrapThisMonth: string;   // kg
   scrapValueThisMonth: string;   // ₹
+
+  // Production (this month)
+  activeWorkOrders:      number;
+  completedWorkOrders:   number;
+  overdueWorkOrders:     number;
+  productionCompletionRate: string;  // e.g. "84.2%"
 
   // Departments
   totalDepartments: number;
@@ -48,6 +61,14 @@ export interface ScrapTrendEntry {
   scrap: number;
 }
 
+export interface AttendanceTrendChartEntry {
+  date: string;        // "Mon", "Tue" …
+  present: number;
+  absent: number;
+  late: number;
+  onLeave: number;
+}
+
 export interface RecentOrder {
   id: number;
   orderNumber: string;
@@ -61,8 +82,9 @@ export interface RecentOrder {
 export interface DashboardCharts {
   orderStatusPie: OrderStatusCount[];
   scrapByDepartment: DeptScrapEntry[];
-  scrapTrend: ScrapTrendEntry[];        // last 7 days
-  recentOrders: RecentOrder[];          // last 5
+  scrapTrend: ScrapTrendEntry[];              // last 7 days
+  attendanceTrend: AttendanceTrendChartEntry[]; // last 7 days
+  recentOrders: RecentOrder[];                // last 5
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -230,10 +252,99 @@ export interface ClientReport {
   rows: ClientReportRow[];
 }
 
+// ── Production report ─────────────────────────────────────────
+export interface ProductionReportRow {
+  workOrderNumber: string;
+  product:         string;
+  department:      string;
+  priority:        string;
+  status:          string;
+  targetQty:       string;
+  producedQty:     string;
+  rejectedQty:     string;
+  scrapQty:        string;
+  completionRate:  string;
+  scheduledStart:  string;
+  scheduledEnd:    string;
+  actualStart:     string;
+  actualEnd:       string;
+}
+
+export interface ProductionReport {
+  generatedAt: string;
+  period:      string;
+  summary: {
+    totalWorkOrders:       number;
+    completed:             number;
+    inProgress:            number;
+    cancelled:             number;
+    totalTargetQty:        string;
+    totalProducedQty:      string;
+    totalRejectedQty:      string;
+    totalScrapQty:         string;
+    overallCompletionRate: string;
+    rejectionRate:         string;
+    byDepartment: Array<{
+      department:    string;
+      workOrders:    number;
+      produced:      string;
+      rejected:      string;
+      completionRate: string;
+    }>;
+  };
+  rows: ProductionReportRow[];
+}
+
+// ── Attendance report ─────────────────────────────────────────
+
+export interface AttendanceReportRow {
+  employeeCode: string;
+  fullName: string;
+  department: string;
+  designation: string;
+  totalDays: number;
+  present: number;
+  absent: number;
+  halfDay: number;
+  late: number;
+  onLeave: number;
+  totalWorkingHours: string;
+  attendanceRate: string;   // e.g. "94.7%"
+}
+
+export interface AttendanceReport {
+  generatedAt: string;
+  period: string;
+  summary: {
+    totalEmployees: number;
+    avgAttendanceRate: string;
+    totalPresent: number;
+    totalAbsent: number;
+    totalHalfDay: number;
+    totalLate: number;
+    totalOnLeave: number;
+    byDepartment: Array<{
+      department: string;
+      present: number;
+      absent: number;
+      late: number;
+      onLeave: number;
+      total: number;
+      rate: string;
+    }>;
+  };
+  rows: AttendanceReportRow[];
+}
+
 // ── Report query filters ──────────────────────────────────────
 export interface ReportFilters {
   fromDate?: Date | undefined;
   toDate?: Date | undefined;
   departmentId?: number | undefined;
   format?: 'json' | undefined;
+}
+
+export interface AttendanceReportFilters extends ReportFilters {
+  sortBy?: 'name' | 'department' | 'attendanceRate' | 'totalDays' | undefined;
+  sortOrder?: 'asc' | 'desc' | undefined;
 }

@@ -4,7 +4,7 @@ import { validateRequest } from '../middleware/validateRequest';
 import { authenticate } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
 import * as ReportsController from '../controllers/reports.controller';
-import { reportQuerySchema } from '../validators/reports.validator';
+import { reportQuerySchema, attendanceReportQuerySchema } from '../validators/reports.validator';
 import { ROLES } from '../constants';
 
 const router = Router();
@@ -128,6 +128,32 @@ router.get(
   authorize(...REPORT_ROLES),
   validateRequest({ query: reportQuerySchema }),
   asyncHandler(ReportsController.getClientReport),
+);
+
+/**
+ * GET /api/v1/reports/attendance
+ * Per-employee attendance summary for a date range.
+ * Query: ?fromDate ?toDate ?departmentId ?sortBy ?sortOrder
+ * Access: ADMIN, MANAGER, HR
+ */
+router.get(
+  '/attendance',
+  authorize(...HR_ROLES),
+  validateRequest({ query: attendanceReportQuerySchema }),
+  asyncHandler(ReportsController.getAttendanceReport),
+);
+
+/**
+ * GET /api/v1/reports/production
+ * Work order completion, output quantities, rejection rates.
+ * Query: ?fromDate ?toDate ?departmentId
+ * Access: ADMIN, MANAGER, PRODUCTION
+ */
+router.get(
+  '/production',
+  authorize(ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION),
+  validateRequest({ query: reportQuerySchema }),
+  asyncHandler(ReportsController.getProductionReport),
 );
 
 export default router;

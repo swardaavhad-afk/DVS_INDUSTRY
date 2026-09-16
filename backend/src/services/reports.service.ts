@@ -9,6 +9,10 @@ import type {
   ScrapReport,
   SupplierReport,
   ClientReport,
+  AttendanceReport,
+  AttendanceReportFilters,
+  ProductionReport,
+  ProductionReportRow,
   ReportFilters,
 } from '../interfaces';
 
@@ -41,6 +45,10 @@ export class ReportsService {
   async getDashboardKPIs(): Promise<DashboardKPIs> {
     logger.info('Fetching dashboard KPIs');
 
+    // Normalise today to UTC midnight for attendance lookup
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
     const [
       totalEmployees,
       activeEmployees,
@@ -54,6 +62,12 @@ export class ReportsService {
       coNotCancelled,
       totalDepts,
       activeDepts,
+      todayAttendance,
+      woActive,
+      woCompleted,
+      woOverdue,
+      woOutputAgg,
+      woTargetAgg,
     ] = await prisma.$transaction([
       prisma.employee.count({ where: { deletedAt: null } }),
       prisma.employee.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
@@ -75,6 +89,32 @@ export class ReportsService {
       prisma.clientOrder.count({ where: { status: { not: 'CANCELLED' } } }),
       prisma.department.count({ where: { deletedAt: null } }),
       prisma.department.count({ where: { deletedAt: null, isActive: true } }),
+      prisma.attendance.findMany({
+        where: { date: today },
+        select: { status: true },
+      }),
+      // Production
+      prisma.workOrder.count({
+        where: { deletedAt: null, status: { in: ['RELEASED', 'IN_PROGRESS'] } },
+      }),
+      prisma.workOrder.count({
+        where: { deletedAt: null, status: 'COMPLETED', updatedAt: { gte: startOfMonth() } },
+      }),
+      prisma.workOrder.count({
+        where: {
+          deletedAt: null,
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          scheduledEnd: { lt: new Date() },
+        },
+      }),
+      prisma.workOrderOutput.aggregate({
+        where: { workOrder: { deletedAt: null, createdAt: { gte: startOfMonth() } } },
+        _sum: { goodQty: true, rejectedQty: true },
+      }),
+      prisma.workOrder.aggregate({
+        where: { deletedAt: null, createdAt: { gte: startOfMonth() } },
+        _sum: { targetQuantity: true },
+      }),
     ]);
 
     // Inventory value
@@ -102,9 +142,35 @@ export class ReportsService {
       ? ((coDelivered / coNotCancelled) * 100).toFixed(1) + '%'
       : '0.0%';
 
+    // Today's attendance KPIs
+    const attCounts = { present: 0, absent: 0, late: 0, onLeave: 0 };
+    for (const a of todayAttendance) {
+      if (a.status === 'PRESENT')  attCounts.present++;
+      else if (a.status === 'ABSENT')   attCounts.absent++;
+      else if (a.status === 'LATE')     attCounts.late++;
+      else if (a.status === 'LEAVE')    attCounts.onLeave++;
+      else if (a.status === 'HALF_DAY') attCounts.present++; // half-day counts as attended
+    }
+    const attTotal = todayAttendance.length;
+    const attRate = attTotal > 0
+      ? (((attCounts.present + attCounts.late) / attTotal) * 100).toFixed(1) + '%'
+      : '0.0%';
+
+    // Production KPIs
+    const woProd  = woOutputAgg._sum.goodQty?.toNumber()     ?? 0;
+    const woTgt   = woTargetAgg._sum.targetQuantity?.toNumber() ?? 0;
+    const prodRate = woTgt > 0
+      ? ((woProd / woTgt) * 100).toFixed(1) + '%'
+      : '0.0%';
+
     return {
       totalEmployees,
       activeEmployees,
+      attendanceTodayPresent: attCounts.present,
+      attendanceTodayAbsent: attCounts.absent,
+      attendanceTodayLate: attCounts.late,
+      attendanceTodayOnLeave: attCounts.onLeave,
+      attendanceTodayRate: attRate,
       totalMaterials: materials.length,
       lowStockCount: lowStock,
       outOfStockCount: outOfStock,
@@ -116,6 +182,10 @@ export class ReportsService {
       orderFulfillmentRate: fulfillment,
       totalScrapThisMonth: scrapQty.toFixed(3),
       scrapValueThisMonth: scrapVal.toFixed(2),
+      activeWorkOrders:          woActive,
+      completedWorkOrders:       woCompleted,
+      overdueWorkOrders:         woOverdue,
+      productionCompletionRate:  prodRate,
       totalDepartments: totalDepts,
       activeDepartments: activeDepts,
     };
@@ -137,14 +207,14 @@ export class ReportsService {
       ]);
 
     const orderStatusPie = [
-      { name: 'Pending',       value: coPending,   color: '#E65100' },
-      { name: 'Approved',      value: coApproved,  color: '#F57F17' },
-      { name: 'In Production', value: coInProd,    color: '#A52A2A' },
+      { name: 'Pending',       value: coPending,    color: '#E65100' },
+      { name: 'Approved',      value: coApproved,   color: '#F57F17' },
+      { name: 'In Production', value: coInProd,     color: '#A52A2A' },
       { name: 'Dispatched',    value: coDispatched, color: '#1565C0' },
       { name: 'Delivered',     value: coDelivered,  color: '#2E7D32' },
     ].filter(o => o.value > 0);
 
-    // Scrap by department (last 30 days)
+    // Scrap by department (this month)
     const scrapByDeptRaw = await prisma.scrapRecord.groupBy({
       by: ['departmentName'],
       where: {
@@ -161,21 +231,42 @@ export class ReportsService {
 
     // Scrap trend — last 7 days
     const scrapTrend: Array<{ day: string; scrap: number }> = [];
+    // Attendance trend — last 7 days
+    const attendanceTrend: Array<{
+      date: string; present: number; absent: number; late: number; onLeave: number;
+    }> = [];
+
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
+      d.setUTCHours(0, 0, 0, 0);
       const next = new Date(d);
       next.setDate(next.getDate() + 1);
 
-      const agg = await prisma.scrapRecord.aggregate({
-        where: { recordedAt: { gte: d, lt: next } },
-        _sum: { quantity: true },
-      });
+      const [scrapAgg, attRecords] = await prisma.$transaction([
+        prisma.scrapRecord.aggregate({
+          where: { recordedAt: { gte: d, lt: next } },
+          _sum: { quantity: true },
+        }),
+        prisma.attendance.findMany({
+          where: { date: d },
+          select: { status: true },
+        }),
+      ]);
+
       scrapTrend.push({
         day: dayLabel(d),
-        scrap: agg._sum.quantity?.toNumber() ?? 0,
+        scrap: scrapAgg._sum.quantity?.toNumber() ?? 0,
       });
+
+      const attCounts = { present: 0, absent: 0, late: 0, onLeave: 0 };
+      for (const a of attRecords) {
+        if (a.status === 'PRESENT' || a.status === 'HALF_DAY') attCounts.present++;
+        else if (a.status === 'ABSENT')  attCounts.absent++;
+        else if (a.status === 'LATE')    attCounts.late++;
+        else if (a.status === 'LEAVE')   attCounts.onLeave++;
+      }
+      attendanceTrend.push({ date: dayLabel(d), ...attCounts });
     }
 
     // Recent 5 client orders
@@ -201,7 +292,7 @@ export class ReportsService {
       }),
     }));
 
-    return { orderStatusPie, scrapByDepartment, scrapTrend, recentOrders };
+    return { orderStatusPie, scrapByDepartment, scrapTrend, attendanceTrend, recentOrders };
   }
 
   // ══ INVENTORY REPORT ══════════════════════════════════════════════════════
@@ -593,6 +684,288 @@ export class ReportsService {
         activeClients: clients.filter(c => c.isActive).length,
         totalRevenue: totalRevenue.toFixed(2),
         totalOrders,
+      },
+      rows,
+    };
+  }
+
+  // ══ ATTENDANCE REPORT ════════════════════════════════════════════════════
+
+  async getAttendanceReport(filters: AttendanceReportFilters): Promise<AttendanceReport> {
+    logger.info('Generating attendance report', filters);
+
+    const dateWhere = this.buildDateWhere(filters, 'date');
+
+    // All active employees (optionally scoped to one department)
+    const empWhere = {
+      deletedAt: null,
+      ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+    };
+
+    const [employees, attendanceRecords, departments] = await prisma.$transaction([
+      prisma.employee.findMany({
+        where: empWhere,
+        orderBy: [{ department: { name: 'asc' } }, { firstName: 'asc' }],
+        select: {
+          id: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          designation: true,
+          departmentId: true,
+          department: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.attendance.findMany({
+        where: {
+          ...(dateWhere ? { date: dateWhere } : {}),
+          ...(filters.departmentId
+            ? { employee: { departmentId: filters.departmentId } }
+            : {}),
+        },
+        select: {
+          employeeId: true,
+          status: true,
+          workingHours: true,
+        },
+      }),
+      prisma.department.findMany({
+        where: { deletedAt: null, isActive: true },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    // Index attendance records by employeeId
+    type AttCounts = {
+      present: number; absent: number; halfDay: number;
+      late: number; onLeave: number; workingHours: number;
+    };
+    const attMap = new Map<number, AttCounts>();
+    for (const a of attendanceRecords) {
+      const entry = attMap.get(a.employeeId) ?? {
+        present: 0, absent: 0, halfDay: 0, late: 0, onLeave: 0, workingHours: 0,
+      };
+      if (a.status === 'PRESENT')       entry.present++;
+      else if (a.status === 'ABSENT')   entry.absent++;
+      else if (a.status === 'HALF_DAY') entry.halfDay++;
+      else if (a.status === 'LATE')     entry.late++;
+      else if (a.status === 'LEAVE')    entry.onLeave++;
+      entry.workingHours += a.workingHours ?? 0;
+      attMap.set(a.employeeId, entry);
+    }
+
+    // Per-department aggregation
+    const deptMap = new Map(departments.map(d => [d.id, d.name]));
+    type DeptAgg = {
+      department: string;
+      present: number; absent: number; late: number; onLeave: number; total: number;
+    };
+    const deptAgg = new Map<number, DeptAgg>();
+
+    // Summary totals
+    let totalPresent = 0, totalAbsent = 0, totalHalfDay = 0;
+    let totalLate = 0, totalOnLeave = 0;
+    let sumRates = 0;
+
+    const rows = employees.map(e => {
+      const att = attMap.get(e.id) ?? {
+        present: 0, absent: 0, halfDay: 0, late: 0, onLeave: 0, workingHours: 0,
+      };
+      const totalDays = att.present + att.absent + att.halfDay + att.late + att.onLeave;
+      const attended = att.present + att.late + att.halfDay;
+      const rate = totalDays > 0
+        ? parseFloat(((attended / totalDays) * 100).toFixed(1))
+        : 0;
+
+      totalPresent  += att.present;
+      totalAbsent   += att.absent;
+      totalHalfDay  += att.halfDay;
+      totalLate     += att.late;
+      totalOnLeave  += att.onLeave;
+      sumRates      += rate;
+
+      // Department aggregation
+      if (e.departmentId !== null) {
+        const da = deptAgg.get(e.departmentId) ?? {
+          department: deptMap.get(e.departmentId) ?? 'Unknown',
+          present: 0, absent: 0, late: 0, onLeave: 0, total: 0,
+        };
+        da.present  += att.present + att.halfDay;
+        da.absent   += att.absent;
+        da.late     += att.late;
+        da.onLeave  += att.onLeave;
+        da.total    += totalDays;
+        deptAgg.set(e.departmentId, da);
+      }
+
+      return {
+        employeeCode: e.employeeCode,
+        fullName: `${e.firstName} ${e.lastName}`,
+        department: e.department?.name ?? '—',
+        designation: e.designation,
+        totalDays,
+        present: att.present,
+        absent: att.absent,
+        halfDay: att.halfDay,
+        late: att.late,
+        onLeave: att.onLeave,
+        totalWorkingHours: att.workingHours.toFixed(1),
+        attendanceRate: `${rate.toFixed(1)}%`,
+      };
+    });
+
+    const avgRate = employees.length > 0
+      ? `${(sumRates / employees.length).toFixed(1)}%`
+      : '0.0%';
+
+    const byDepartment = Array.from(deptAgg.values()).map(da => ({
+      department: da.department,
+      present: da.present,
+      absent: da.absent,
+      late: da.late,
+      onLeave: da.onLeave,
+      total: da.total,
+      rate: da.total > 0
+        ? `${(((da.present + da.late) / da.total) * 100).toFixed(1)}%`
+        : '0.0%',
+    })).sort((a, b) => b.present - a.present);
+
+    // Apply sort
+    const { sortBy = 'department', sortOrder = 'asc' } = filters;
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'name')           cmp = a.fullName.localeCompare(b.fullName);
+      else if (sortBy === 'department') cmp = a.department.localeCompare(b.department);
+      else if (sortBy === 'totalDays') cmp = a.totalDays - b.totalDays;
+      else if (sortBy === 'attendanceRate')
+        cmp = parseFloat(a.attendanceRate) - parseFloat(b.attendanceRate);
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      period: this.buildPeriodLabel(filters),
+      summary: {
+        totalEmployees: employees.length,
+        avgAttendanceRate: avgRate,
+        totalPresent,
+        totalAbsent,
+        totalHalfDay,
+        totalLate,
+        totalOnLeave,
+        byDepartment,
+      },
+      rows,
+    };
+  }
+
+  // ══ PRODUCTION REPORT ════════════════════════════════════════════════════
+
+  async getProductionReport(filters: ReportFilters): Promise<ProductionReport> {
+    logger.info('Generating production report', filters);
+
+    const dateWhere = this.buildDateWhere(filters, 'createdAt');
+    const baseWhere = {
+      deletedAt: null,
+      ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+      ...(dateWhere ? { createdAt: dateWhere } : {}),
+    };
+
+    const workOrders = await prisma.workOrder.findMany({
+      where: baseWhere,
+      orderBy: [{ departmentName: 'asc' }, { createdAt: 'desc' }],
+      include: {
+        outputs: {
+          select: { goodQty: true, rejectedQty: true, scrapQty: true },
+        },
+      },
+    });
+
+    let totalTarget   = 0, totalProduced = 0;
+    let totalRejected = 0, totalScrap    = 0;
+    let completed = 0, inProgress = 0, cancelled = 0;
+
+    // Per-department aggregation
+    type DeptAgg = { workOrders: number; produced: number; rejected: number; target: number };
+    const deptAgg = new Map<string, DeptAgg>();
+
+    const rows: ProductionReportRow[] = workOrders.map(wo => {
+      let produced = 0, rejected = 0, scrap = 0;
+      for (const o of wo.outputs) {
+        produced += o.goodQty.toNumber();
+        rejected += o.rejectedQty.toNumber();
+        scrap    += o.scrapQty.toNumber();
+      }
+      const target = wo.targetQuantity.toNumber();
+      const rate   = target > 0 ? ((produced / target) * 100).toFixed(1) + '%' : '0.0%';
+
+      totalTarget   += target;
+      totalProduced += produced;
+      totalRejected += rejected;
+      totalScrap    += scrap;
+
+      if (wo.status === 'COMPLETED')   completed++;
+      else if (wo.status === 'IN_PROGRESS' || wo.status === 'RELEASED') inProgress++;
+      else if (wo.status === 'CANCELLED') cancelled++;
+
+      const deptKey = wo.departmentName ?? '—';
+      const da = deptAgg.get(deptKey) ?? { workOrders: 0, produced: 0, rejected: 0, target: 0 };
+      da.workOrders++;
+      da.produced  += produced;
+      da.rejected  += rejected;
+      da.target    += target;
+      deptAgg.set(deptKey, da);
+
+      return {
+        workOrderNumber: wo.workOrderNumber,
+        product:         wo.product,
+        department:      wo.departmentName ?? '—',
+        priority:        wo.priority,
+        status:          wo.status,
+        targetQty:       target.toFixed(3),
+        producedQty:     produced.toFixed(3),
+        rejectedQty:     rejected.toFixed(3),
+        scrapQty:        scrap.toFixed(3),
+        completionRate:  rate,
+        scheduledStart:  fmtDate(wo.scheduledStart),
+        scheduledEnd:    fmtDate(wo.scheduledEnd),
+        actualStart:     fmtDate(wo.actualStart),
+        actualEnd:       fmtDate(wo.actualEnd),
+      };
+    });
+
+    const overallCompletionRate = totalTarget > 0
+      ? ((totalProduced / totalTarget) * 100).toFixed(1) + '%'
+      : '0.0%';
+    const rejectionRate = (totalProduced + totalRejected) > 0
+      ? ((totalRejected / (totalProduced + totalRejected)) * 100).toFixed(1) + '%'
+      : '0.0%';
+
+    const byDepartment = Array.from(deptAgg.entries()).map(([department, da]) => ({
+      department,
+      workOrders: da.workOrders,
+      produced:   da.produced.toFixed(3),
+      rejected:   da.rejected.toFixed(3),
+      completionRate: da.target > 0
+        ? ((da.produced / da.target) * 100).toFixed(1) + '%'
+        : '0.0%',
+    })).sort((a, b) => b.workOrders - a.workOrders);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      period:      this.buildPeriodLabel(filters),
+      summary: {
+        totalWorkOrders:       workOrders.length,
+        completed,
+        inProgress,
+        cancelled,
+        totalTargetQty:        totalTarget.toFixed(3),
+        totalProducedQty:      totalProduced.toFixed(3),
+        totalRejectedQty:      totalRejected.toFixed(3),
+        totalScrapQty:         totalScrap.toFixed(3),
+        overallCompletionRate,
+        rejectionRate,
+        byDepartment,
       },
       rows,
     };
