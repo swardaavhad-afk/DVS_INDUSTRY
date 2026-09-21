@@ -101,22 +101,28 @@ const outputSelect = {
 // ── Converters ────────────────────────────────────────────────────────────────
 
 type PrismaWorkOrder = Prisma.WorkOrderGetPayload<{ select: typeof workOrderSelect }>;
-type PrismaOutput    = Prisma.WorkOrderOutputGetPayload<{ select: typeof outputSelect }>;
+type PrismaOutput = Prisma.WorkOrderOutputGetPayload<{ select: typeof outputSelect }>;
 
 function computeOutputTotals(
-  outputs: Array<{ goodQty: Prisma.Decimal; rejectedQty: Prisma.Decimal; scrapQty: Prisma.Decimal }>,
+  outputs: Array<{
+    goodQty: Prisma.Decimal;
+    rejectedQty: Prisma.Decimal;
+    scrapQty: Prisma.Decimal;
+  }>,
 ): { producedQty: string; rejectedQty: string; scrapQty: string; completionRate: string } {
-  let produced = 0, rejected = 0, scrap = 0;
+  let produced = 0,
+    rejected = 0,
+    scrap = 0;
   for (const o of outputs) {
     produced += o.goodQty.toNumber();
     rejected += o.rejectedQty.toNumber();
-    scrap    += o.scrapQty.toNumber();
+    scrap += o.scrapQty.toNumber();
   }
   return {
-    producedQty:    produced.toFixed(3),
-    rejectedQty:    rejected.toFixed(3),
-    scrapQty:       scrap.toFixed(3),
-    completionRate: '0.0%',  // filled below per-WO
+    producedQty: produced.toFixed(3),
+    rejectedQty: rejected.toFixed(3),
+    scrapQty: scrap.toFixed(3),
+    completionRate: '0.0%', // filled below per-WO
   };
 }
 
@@ -124,53 +130,51 @@ function toWorkOrderDto(r: PrismaWorkOrder): WorkOrderDto {
   const { producedQty, rejectedQty, scrapQty } = computeOutputTotals(r.outputs);
   const target = r.targetQuantity.toNumber();
   const produced = parseFloat(producedQty);
-  const completionRate = target > 0
-    ? ((produced / target) * 100).toFixed(1) + '%'
-    : '0.0%';
+  const completionRate = target > 0 ? ((produced / target) * 100).toFixed(1) + '%' : '0.0%';
 
   return {
-    id:              r.id,
+    id: r.id,
     workOrderNumber: r.workOrderNumber,
-    product:         r.product,
-    targetQuantity:  r.targetQuantity.toString(),
-    unit:            r.unit,
-    scheduledStart:  r.scheduledStart,
-    scheduledEnd:    r.scheduledEnd,
-    actualStart:     r.actualStart,
-    actualEnd:       r.actualEnd,
-    status:          r.status as WorkOrderStatus,
-    priority:        r.priority as WorkOrderPriority,
-    departmentId:    r.departmentId,
-    departmentName:  r.departmentName,
-    assignedToId:    r.assignedToId,
-    assignedToName:  r.assignedToName,
-    clientOrderId:   r.clientOrderId,
-    notes:           r.notes,
-    createdById:     r.createdById,
-    createdAt:       r.createdAt,
-    updatedAt:       r.updatedAt,
-    deletedAt:       r.deletedAt,
+    product: r.product,
+    targetQuantity: r.targetQuantity.toString(),
+    unit: r.unit,
+    scheduledStart: r.scheduledStart,
+    scheduledEnd: r.scheduledEnd,
+    actualStart: r.actualStart,
+    actualEnd: r.actualEnd,
+    status: r.status as WorkOrderStatus,
+    priority: r.priority as WorkOrderPriority,
+    departmentId: r.departmentId,
+    departmentName: r.departmentName,
+    assignedToId: r.assignedToId,
+    assignedToName: r.assignedToName,
+    clientOrderId: r.clientOrderId,
+    notes: r.notes,
+    createdById: r.createdById,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    deletedAt: r.deletedAt,
     producedQty,
     rejectedQty,
     scrapQty,
     completionRate,
-    _count:          r._count,
+    _count: r._count,
   };
 }
 
 function toOutputDto(r: PrismaOutput): WorkOrderOutputDto {
   return {
-    id:             r.id,
-    workOrderId:    r.workOrderId,
-    goodQty:        r.goodQty.toString(),
-    rejectedQty:    r.rejectedQty.toString(),
-    scrapQty:       r.scrapQty.toString(),
-    recordedAt:     r.recordedAt,
-    recordedById:   r.recordedById,
+    id: r.id,
+    workOrderId: r.workOrderId,
+    goodQty: r.goodQty.toString(),
+    rejectedQty: r.rejectedQty.toString(),
+    scrapQty: r.scrapQty.toString(),
+    recordedAt: r.recordedAt,
+    recordedById: r.recordedById,
     recordedByName: r.recordedByName,
-    remarks:        r.remarks,
-    createdAt:      r.createdAt,
-    updatedAt:      r.updatedAt,
+    remarks: r.remarks,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   };
 }
 
@@ -192,7 +196,6 @@ async function nextWorkOrderNumber(): Promise<string> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class ProductionRepository {
-
   // ══ WORK ORDERS ══════════════════════════════════════════════════════════
 
   async createWorkOrder(data: CreateWorkOrderData): Promise<WorkOrderDto> {
@@ -200,19 +203,19 @@ export class ProductionRepository {
     const raw = await prisma.workOrder.create({
       data: {
         workOrderNumber,
-        product:        data.product,
+        product: data.product,
         targetQuantity: data.targetQuantity,
-        unit:           data.unit ?? 'pcs',
+        unit: data.unit ?? 'pcs',
         scheduledStart: data.scheduledStart ?? null,
-        scheduledEnd:   data.scheduledEnd   ?? null,
-        priority:       data.priority       ?? 'NORMAL',
-        departmentId:   data.departmentId   ?? null,
+        scheduledEnd: data.scheduledEnd ?? null,
+        priority: data.priority ?? 'NORMAL',
+        departmentId: data.departmentId ?? null,
         departmentName: data.departmentName ?? null,
-        assignedToId:   data.assignedToId   ?? null,
+        assignedToId: data.assignedToId ?? null,
         assignedToName: data.assignedToName ?? null,
-        clientOrderId:  data.clientOrderId  ?? null,
-        notes:          data.notes          ?? null,
-        createdById:    data.createdById    ?? null,
+        clientOrderId: data.clientOrderId ?? null,
+        notes: data.notes ?? null,
+        createdById: data.createdById ?? null,
       },
       select: workOrderSelect,
     });
@@ -221,21 +224,21 @@ export class ProductionRepository {
 
   async updateWorkOrder(id: number, data: UpdateWorkOrderData): Promise<WorkOrderDto> {
     const up: Prisma.WorkOrderUpdateInput = {};
-    if (data.product        !== undefined) up.product        = data.product;
+    if (data.product !== undefined) up.product = data.product;
     if (data.targetQuantity !== undefined) up.targetQuantity = data.targetQuantity;
-    if (data.unit           !== undefined) up.unit           = data.unit;
+    if (data.unit !== undefined) up.unit = data.unit;
     if (data.scheduledStart !== undefined) up.scheduledStart = data.scheduledStart;
-    if (data.scheduledEnd   !== undefined) up.scheduledEnd   = data.scheduledEnd;
-    if (data.actualStart    !== undefined) up.actualStart    = data.actualStart;
-    if (data.actualEnd      !== undefined) up.actualEnd      = data.actualEnd;
-    if (data.status         !== undefined) up.status         = data.status;
-    if (data.priority       !== undefined) up.priority       = data.priority;
-    if (data.departmentId   !== undefined) up.departmentId   = data.departmentId;
+    if (data.scheduledEnd !== undefined) up.scheduledEnd = data.scheduledEnd;
+    if (data.actualStart !== undefined) up.actualStart = data.actualStart;
+    if (data.actualEnd !== undefined) up.actualEnd = data.actualEnd;
+    if (data.status !== undefined) up.status = data.status;
+    if (data.priority !== undefined) up.priority = data.priority;
+    if (data.departmentId !== undefined) up.departmentId = data.departmentId;
     if (data.departmentName !== undefined) up.departmentName = data.departmentName;
-    if (data.assignedToId   !== undefined) up.assignedToId   = data.assignedToId;
+    if (data.assignedToId !== undefined) up.assignedToId = data.assignedToId;
     if (data.assignedToName !== undefined) up.assignedToName = data.assignedToName;
-    if (data.clientOrderId  !== undefined) up.clientOrderId  = data.clientOrderId;
-    if (data.notes          !== undefined) up.notes          = data.notes;
+    if (data.clientOrderId !== undefined) up.clientOrderId = data.clientOrderId;
+    if (data.notes !== undefined) up.notes = data.notes;
 
     const raw = await prisma.workOrder.update({
       where: { id },
@@ -275,31 +278,37 @@ export class ProductionRepository {
 
   async findAllWorkOrders(f: WorkOrderFilters): Promise<WorkOrderListResult> {
     const {
-      search, status = 'all', priority = 'all',
-      departmentId, clientOrderId,
-      fromDate, toDate,
-      sortBy = 'createdAt', sortOrder = 'desc',
-      page = 1, pageSize = 20,
+      search,
+      status = 'all',
+      priority = 'all',
+      departmentId,
+      clientOrderId,
+      fromDate,
+      toDate,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
     } = f;
 
     const where: Prisma.WorkOrderWhereInput = { deletedAt: null };
 
-    if (status !== 'all')   where.status   = status as WorkOrderStatus;
+    if (status !== 'all') where.status = status as WorkOrderStatus;
     if (priority !== 'all') where.priority = priority as WorkOrderPriority;
-    if (departmentId  !== undefined) where.departmentId  = departmentId;
+    if (departmentId !== undefined) where.departmentId = departmentId;
     if (clientOrderId !== undefined) where.clientOrderId = clientOrderId;
 
     if (fromDate !== undefined || toDate !== undefined) {
       where.createdAt = {};
       if (fromDate) where.createdAt.gte = fromDate;
-      if (toDate)   where.createdAt.lte = toDate;
+      if (toDate) where.createdAt.lte = toDate;
     }
 
     if (search?.trim()) {
       where.OR = [
-        { product:         { contains: search.trim(), mode: 'insensitive' } },
+        { product: { contains: search.trim(), mode: 'insensitive' } },
         { workOrderNumber: { contains: search.trim(), mode: 'insensitive' } },
-        { departmentName:  { contains: search.trim(), mode: 'insensitive' } },
+        { departmentName: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
 
@@ -332,14 +341,14 @@ export class ProductionRepository {
   async createOutput(data: CreateOutputData): Promise<WorkOrderOutputDto> {
     const raw = await prisma.workOrderOutput.create({
       data: {
-        workOrderId:    data.workOrderId,
-        goodQty:        data.goodQty,
-        rejectedQty:    data.rejectedQty    ?? '0',
-        scrapQty:       data.scrapQty       ?? '0',
-        recordedAt:     data.recordedAt     ?? new Date(),
-        recordedById:   data.recordedById   ?? null,
+        workOrderId: data.workOrderId,
+        goodQty: data.goodQty,
+        rejectedQty: data.rejectedQty ?? '0',
+        scrapQty: data.scrapQty ?? '0',
+        recordedAt: data.recordedAt ?? new Date(),
+        recordedById: data.recordedById ?? null,
         recordedByName: data.recordedByName ?? null,
-        remarks:        data.remarks        ?? null,
+        remarks: data.remarks ?? null,
       },
       select: outputSelect,
     });
@@ -348,12 +357,12 @@ export class ProductionRepository {
 
   async updateOutput(outputId: number, data: UpdateOutputData): Promise<WorkOrderOutputDto> {
     const up: Prisma.WorkOrderOutputUpdateInput = {};
-    if (data.goodQty        !== undefined) up.goodQty        = data.goodQty;
-    if (data.rejectedQty    !== undefined) up.rejectedQty    = data.rejectedQty;
-    if (data.scrapQty       !== undefined) up.scrapQty       = data.scrapQty;
-    if (data.recordedAt     !== undefined) up.recordedAt     = data.recordedAt;
+    if (data.goodQty !== undefined) up.goodQty = data.goodQty;
+    if (data.rejectedQty !== undefined) up.rejectedQty = data.rejectedQty;
+    if (data.scrapQty !== undefined) up.scrapQty = data.scrapQty;
+    if (data.recordedAt !== undefined) up.recordedAt = data.recordedAt;
     if (data.recordedByName !== undefined) up.recordedByName = data.recordedByName;
-    if (data.remarks        !== undefined) up.remarks        = data.remarks;
+    if (data.remarks !== undefined) up.remarks = data.remarks;
 
     const raw = await prisma.workOrderOutput.update({
       where: { id: outputId },
@@ -379,7 +388,7 @@ export class ProductionRepository {
     if (fromDate !== undefined || toDate !== undefined) {
       where.recordedAt = {};
       if (fromDate) where.recordedAt.gte = fromDate;
-      if (toDate)   where.recordedAt.lte = toDate;
+      if (toDate) where.recordedAt.lte = toDate;
     }
 
     const [raws, total] = await prisma.$transaction([
@@ -401,11 +410,7 @@ export class ProductionRepository {
 
   // ══ KPIs ═════════════════════════════════════════════════════════════════
 
-  async getKPIs(
-    departmentId?: number,
-    fromDate?: Date,
-    toDate?: Date,
-  ): Promise<ProductionKPIs> {
+  async getKPIs(departmentId?: number, fromDate?: Date, toDate?: Date): Promise<ProductionKPIs> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -448,11 +453,13 @@ export class ProductionRepository {
         by: ['status'],
         where: baseWhere,
         _count: { id: true },
+        orderBy: { status: 'asc' },
       }),
       prisma.workOrder.groupBy({
         by: ['priority'],
         where: baseWhere,
         _count: { id: true },
+        orderBy: { priority: 'asc' },
       }),
       prisma.workOrderOutput.aggregate({
         where: {
@@ -466,46 +473,43 @@ export class ProductionRepository {
       }),
     ]);
 
-    const produced = outputAgg._sum.goodQty?.toNumber()     ?? 0;
+    const produced = outputAgg._sum.goodQty?.toNumber() ?? 0;
     const rejected = outputAgg._sum.rejectedQty?.toNumber() ?? 0;
-    const scrap    = outputAgg._sum.scrapQty?.toNumber()    ?? 0;
-    const target   = targetAgg._sum.targetQuantity?.toNumber() ?? 0;
+    const scrap = outputAgg._sum.scrapQty?.toNumber() ?? 0;
+    const target = targetAgg._sum.targetQuantity?.toNumber() ?? 0;
 
-    const overallCompletionRate = target > 0
-      ? ((produced / target) * 100).toFixed(1) + '%'
-      : '0.0%';
-    const rejectionRate = (produced + rejected) > 0
-      ? ((rejected / (produced + rejected)) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const overallCompletionRate =
+      target > 0 ? ((produced / target) * 100).toFixed(1) + '%' : '0.0%';
+    const rejectionRate =
+      produced + rejected > 0
+        ? ((rejected / (produced + rejected)) * 100).toFixed(1) + '%'
+        : '0.0%';
 
     return {
       totalWorkOrders,
       activeWorkOrders,
       completedThisMonth,
       overdueWorkOrders,
-      totalTargetQty:        target.toFixed(3),
-      totalProducedQty:      produced.toFixed(3),
-      totalRejectedQty:      rejected.toFixed(3),
-      totalScrapQty:         scrap.toFixed(3),
+      totalTargetQty: target.toFixed(3),
+      totalProducedQty: produced.toFixed(3),
+      totalRejectedQty: rejected.toFixed(3),
+      totalScrapQty: scrap.toFixed(3),
       overallCompletionRate,
       rejectionRate,
-      byStatus: statusCounts.map((r: { status: string; _count: { id: number } }) => ({
+      byStatus: statusCounts.map((r) => ({
         status: r.status as WorkOrderStatus,
-        count:  r._count.id,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
       })),
-      byPriority: priorityCounts.map((r: { priority: string; _count: { id: number } }) => ({
+      byPriority: priorityCounts.map((r) => ({
         priority: r.priority as WorkOrderPriority,
-        count:    r._count.id,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
       })),
     };
   }
 
   // ══ TREND ════════════════════════════════════════════════════════════════
 
-  async getProductionTrend(
-    days: number,
-    departmentId?: number,
-  ): Promise<ProductionTrendEntry[]> {
+  async getProductionTrend(days: number, departmentId?: number): Promise<ProductionTrendEntry[]> {
     const trend: ProductionTrendEntry[] = [];
 
     for (let i = days - 1; i >= 0; i--) {
@@ -526,10 +530,10 @@ export class ProductionRepository {
       });
 
       trend.push({
-        date:     d.toLocaleDateString('en-IN', { weekday: 'short' }),
-        produced: agg._sum.goodQty?.toNumber()     ?? 0,
+        date: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+        produced: agg._sum.goodQty?.toNumber() ?? 0,
         rejected: agg._sum.rejectedQty?.toNumber() ?? 0,
-        scrap:    agg._sum.scrapQty?.toNumber()    ?? 0,
+        scrap: agg._sum.scrapQty?.toNumber() ?? 0,
       });
     }
 

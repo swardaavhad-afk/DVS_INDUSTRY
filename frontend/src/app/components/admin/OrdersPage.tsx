@@ -11,9 +11,11 @@ import { PageHeader, Card, CardHeader, KPICard, StatusBadge, Btn, DataTable, Tab
 import { useERP } from "./ERPContext";
 import {
   getClientOrders, getPurchaseOrders, getOrderStats,
+  getClients, getSuppliers,
   approveClientOrder, dispatchClientOrder, deliverClientOrder,
   createClientOrder, createPurchaseOrder,
   type ClientOrderDto, type PurchaseOrderDto, type OrderStatistics,
+  type ClientDto, type SupplierDto,
 } from "../../../lib/services/orders.service";
 
 /* ── Types ── */
@@ -91,19 +93,22 @@ function Modal({ title, onClose, children, wide = false }: { title: string; onCl
 }
 
 /* ── PO Creation Modal ── */
-function POModal({ prefill, onClose, onSubmit }: {
+function POModal({ prefill, suppliers, onClose, onSubmit }: {
   prefill?: { material: string; qty: number; cost: number; supplier: string };
+  suppliers: SupplierDto[];
   onClose: () => void;
-  onSubmit: (po: Omit<SupplierOrder, "id" | "orderDate" | "actualDel">) => void;
+  onSubmit: (po: Omit<SupplierOrder, "id" | "orderDate" | "actualDel">) => Promise<void>;
 }) {
   const [form, setForm] = useState({
-    supplier: prefill?.supplier || SUPPLIERS[0].name,
+    supplier: prefill?.supplier || suppliers[0]?.name || "",
     material: prefill?.material || "",
     qty: prefill?.qty ? `${prefill.qty} kg` : "",
     cost: prefill?.cost ? `₹${(prefill.qty || 0) * prefill.cost}` : "",
     expectedDel: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const isValid = form.supplier && form.material && form.qty && form.expectedDel;
 
@@ -134,7 +139,7 @@ function POModal({ prefill, onClose, onSubmit }: {
         <div>
           <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>Select Supplier *</label>
           <div className="grid grid-cols-2 gap-2">
-            {SUPPLIERS.map((s) => (
+            {suppliers.map((s) => (
               <button key={s.name} onClick={() => set("supplier", s.name)}
                 className="text-left p-3 rounded-xl transition-all"
                 style={{ border: `1.5px solid ${form.supplier === s.name ? "#A52A2A" : "#E8E2E0"}`, background: form.supplier === s.name ? "#FDF5F5" : "#fff", cursor: "pointer" }}>
@@ -152,7 +157,7 @@ function POModal({ prefill, onClose, onSubmit }: {
         ].map((f) => (
           <div key={f.key}>
             <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>{f.label}</label>
-            <input type={f.type || "text"} placeholder={f.placeholder} value={(form as any)[f.key]}
+                    <input type={f.type || "text"} placeholder={f.placeholder} value={(form as any)[f.key]}
               onChange={(e) => set(f.key, e.target.value)}
               style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #D4BFBB", borderRadius: "0.375rem", fontSize: "0.8375rem", outline: "none" }}
               onFocus={(e) => { e.target.style.borderColor = "#A52A2A"; }}
@@ -161,11 +166,20 @@ function POModal({ prefill, onClose, onSubmit }: {
         ))}
         <div className="flex gap-2 mt-2">
           <button onClick={onClose} style={{ flex: 1, padding: "0.625rem", border: "1px solid #E8E2E0", borderRadius: "0.5rem", background: "#fff", cursor: "pointer", fontSize: "0.875rem" }}>Cancel</button>
-          <button disabled={!isValid} onClick={() => {
-            onSubmit({ supplier: form.supplier, material: form.material, qty: form.qty, cost: form.cost || "–", expectedDel: form.expectedDel, status: "pending" });
-            setSubmitted(true);
+          {error && <p style={{ color: "#C0392B", fontSize: "0.8rem" }}>{error}</p>}
+          <button disabled={!isValid || saving} onClick={async () => {
+            setSaving(true);
+            setError("");
+            try {
+              await onSubmit({ supplier: form.supplier, material: form.material, qty: form.qty, cost: form.cost || "–", expectedDel: form.expectedDel, status: "pending" });
+              setSubmitted(true);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Purchase order could not be saved.");
+            } finally {
+              setSaving(false);
+            }
           }} style={{ flex: 2, padding: "0.625rem", border: "none", borderRadius: "0.5rem", background: isValid ? "#A52A2A" : "#D4BFBB", color: "#fff", cursor: isValid ? "pointer" : "not-allowed", fontSize: "0.875rem", fontWeight: 600 }}>
-            Submit Purchase Order
+            {saving ? "Saving..." : "Submit Purchase Order"}
           </button>
         </div>
       </div>
@@ -322,9 +336,11 @@ function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onCl
 }
 
 /* ── New Client Order Modal ── */
-function NewClientOrderModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (o: ClientOrder) => void }) {
+function NewClientOrderModal({ clients, onClose, onSubmit }: { clients: ClientDto[]; onClose: () => void; onSubmit: (o: ClientOrder) => Promise<void> }) {
   const [form, setForm] = useState({ client: "", product: "", qty: "", requiredDate: "", value: "" });
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const isValid = form.client && form.product && form.qty && form.requiredDate;
 
@@ -351,26 +367,35 @@ function NewClientOrderModal({ onClose, onSubmit }: { onClose: () => void; onSub
           { label: "Client Name *", key: "client", placeholder: "e.g. Reliance Eng." },
           { label: "Product / Part *", key: "product", placeholder: "e.g. Steel Frames 2mm" },
           { label: "Quantity (pcs) *", key: "qty", placeholder: "e.g. 500", type: "number" },
-          { label: "Required By *", key: "requiredDate", placeholder: "e.g. 25 Jun" },
+          { label: "Required By *", key: "requiredDate", placeholder: "", type: "date" },
           { label: "Order Value (₹)", key: "value", placeholder: "e.g. ₹1,82,000" },
         ].map((f) => (
           <div key={f.key}>
             <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>{f.label}</label>
-            <input type={f.type || "text"} placeholder={f.placeholder} value={(form as any)[f.key]}
+                    <input list={f.key === "client" ? "available-clients" : undefined} type={f.type || "text"} placeholder={f.placeholder} value={(form as any)[f.key]}
               onChange={(e) => set(f.key, e.target.value)}
               style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #D4BFBB", borderRadius: "0.375rem", fontSize: "0.8375rem", outline: "none" }}
               onFocus={(e) => { e.target.style.borderColor = "#A52A2A"; }}
               onBlur={(e) => { e.target.style.borderColor = "#D4BFBB"; }} />
+            {f.key === "client" && <datalist id="available-clients">{clients.map((client) => <option key={client.id} value={client.name} />)}</datalist>}
           </div>
         ))}
+        {error && <p style={{ color: "#C0392B", fontSize: "0.8rem" }}>{error}</p>}
         <div className="flex gap-2 mt-1">
           <button onClick={onClose} style={{ flex: 1, padding: "0.625rem", border: "1px solid #E8E2E0", borderRadius: "0.5rem", background: "#fff", cursor: "pointer" }}>Cancel</button>
-          <button disabled={!isValid} onClick={() => {
-            const nextId = `ORD-${2847 + Math.floor(Math.random() * 100)}`;
-            onSubmit({ id: nextId, client: form.client, product: form.product, qty: parseInt(form.qty), orderDate: dateStr, requiredDate: form.requiredDate, status: "pending", value: form.value || "–" });
-            setDone(true);
+          <button disabled={!isValid || saving} onClick={async () => {
+            setSaving(true);
+            setError("");
+            try {
+              await onSubmit({ id: "", client: form.client, product: form.product, qty: parseInt(form.qty), orderDate: dateStr, requiredDate: form.requiredDate, status: "pending", value: form.value || "–" });
+              setDone(true);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Client order could not be saved.");
+            } finally {
+              setSaving(false);
+            }
           }} style={{ flex: 2, padding: "0.625rem", border: "none", borderRadius: "0.5rem", background: isValid ? "#A52A2A" : "#D4BFBB", color: "#fff", cursor: isValid ? "pointer" : "not-allowed", fontWeight: 600 }}>
-            Create Order
+            {saving ? "Saving..." : "Create Order"}
           </button>
         </div>
       </div>
@@ -383,8 +408,10 @@ function NewClientOrderModal({ onClose, onSubmit }: { onClose: () => void; onSub
 ══════════════════════════════════════════════ */
 export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => void }) {
   const [tab, setTab]                       = useState("client-orders");
-  const [clientOrders, setClientOrders]     = useState<ClientOrder[]>(INITIAL_CLIENT_ORDERS);
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>(INITIAL_SUPPLIER_ORDERS);
+  const [clientOrders, setClientOrders]     = useState<ClientOrder[]>([]);
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
+  const [clients, setClients]               = useState<ClientDto[]>([]);
+  const [suppliers, setSuppliers]           = useState<SupplierDto[]>([]);
   const [apiStats, setApiStats]             = useState<OrderStatistics | null>(null);
   const [showNewOrder, setShowNewOrder]     = useState(false);
   const [showNewPO, setShowNewPO]           = useState(false);
@@ -393,14 +420,16 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
   const { pendingPO, setPendingPO } = useERP();
 
   // ── Load real data ──────────────────────────────────────────────────────────
-  const loadAll = () => {
-    Promise.all([
+  const loadAll = async (): Promise<void> => {
+    const [coRes, poRes, statsRes, clientRes, supplierRes] = await Promise.all([
       getClientOrders({ pageSize: 50, sortOrder: "desc" }).catch(() => null),
       getPurchaseOrders({ pageSize: 50, sortOrder: "desc" }).catch(() => null),
       getOrderStats().catch(() => null),
-    ]).then(([coRes, poRes, statsRes]) => {
-      if (coRes && coRes.data.length > 0) {
-        setClientOrders(coRes.data.map(o => ({
+      getClients({ pageSize: 100 }).catch(() => null),
+      getSuppliers({ pageSize: 100 }).catch(() => null),
+    ]);
+
+    setClientOrders(coRes?.data.map(o => ({
           id: o.orderNumber,
           client: o.client.name,
           product: o.product,
@@ -412,10 +441,8 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
           dispatch: o.dispatchDate ? new Date(o.dispatchDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : undefined,
           delivery: o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : undefined,
           _apiId: o.id,
-        })));
-      }
-      if (poRes && poRes.data.length > 0) {
-        setSupplierOrders(poRes.data.map(p => ({
+        })) ?? []);
+    setSupplierOrders(poRes?.data.map(p => ({
           id: p.poNumber,
           supplier: p.supplier.name,
           material: p.material,
@@ -426,10 +453,10 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
           cost: p.totalCost ? `₹${parseFloat(p.totalCost).toLocaleString("en-IN")}` : "–",
           status: p.status.toLowerCase().replace("_", "-"),
           _apiId: p.id,
-        })));
-      }
-      if (statsRes) setApiStats(statsRes);
-    });
+        })) ?? []);
+    setApiStats(statsRes);
+    setClients(clientRes?.data ?? []);
+    setSuppliers(supplierRes?.data ?? []);
   };
 
   useEffect(() => { loadAll(); }, []);
@@ -440,47 +467,58 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
   }, [pendingPO]);
 
   const handleApprove = async (id: string) => {
-    const order = clientOrders.find(o => o.id === id);
-    if (order?._apiId) {
-      try { await approveClientOrder(order._apiId); } catch { /* update locally anyway */ }
+    try {
+      const order = clientOrders.find(o => o.id === id);
+      if (!order?._apiId) throw new Error("This order is not stored in the database.");
+      await approveClientOrder(order._apiId);
+      await loadAll();
+      showSonnerToast.success(`Order ${id} approved — production scheduled`);
+    } catch (err) {
+      showSonnerToast.error(err instanceof Error ? err.message : "Order approval failed.");
     }
-    setClientOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "approved" } : o));
-    showSonnerToast.success(`Order ${id} approved — production scheduled`);
   };
 
   const handleDispatchDone = async (id: string) => {
-    const today = new Date();
-    const dateStr = `${today.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][today.getMonth()]}`;
-    const order = clientOrders.find(o => o.id === id);
-    if (order?._apiId) {
-      try { await dispatchClientOrder(order._apiId, {}); } catch { /* update locally anyway */ }
+    try {
+      const order = clientOrders.find(o => o.id === id);
+      if (!order?._apiId) throw new Error("This order is not stored in the database.");
+      await dispatchClientOrder(order._apiId, {});
+      await loadAll();
+      setDispatchOrder(null);
+      showSonnerToast.success(`Order ${id} dispatched — client notified`);
+    } catch (err) {
+      showSonnerToast.error(err instanceof Error ? err.message : "Order dispatch failed.");
     }
-    setClientOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "dispatched", dispatch: dateStr } : o));
-    setDispatchOrder(null);
-    showSonnerToast.success(`Order ${id} dispatched — client notified`);
   };
 
   const handleAddOrder = async (o: ClientOrder) => {
-    // Try real API — find clientId by name from existing orders
-    try {
-      const existingClient = clientOrders.find(c => c.client === o.client);
-      if (existingClient?._apiId) {
-        await createClientOrder({ clientId: existingClient._apiId, product: o.product, quantity: o.qty, unit: "pcs", requiredDate: o.requiredDate ? new Date().toISOString() : null });
-      }
-    } catch { /* add locally */ }
-    setClientOrders((prev) => [o, ...prev]);
+    const client = clients.find(c => c.name.toLowerCase() === o.client.toLowerCase());
+    if (!client) throw new Error("Select an existing client before creating an order.");
+    await createClientOrder({
+      clientId: client.id,
+      product: o.product,
+      quantity: o.qty,
+      unit: "pcs",
+      value: o.value.replace(/[₹,\s]/g, "") || null,
+      requiredDate: o.requiredDate ? new Date(o.requiredDate).toISOString() : null,
+    });
+    await loadAll();
     showSonnerToast.success(`Order ${o.id} created for ${o.client}`);
   };
 
   const handleAddPO = async (po: Omit<SupplierOrder, "id" | "orderDate" | "actualDel">) => {
-    const today = new Date();
-    const dateStr = `${today.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][today.getMonth()]}`;
-    const id = `PO-${2851 + supplierOrders.length}`;
-    // Try real API
-    try {
-      await createPurchaseOrder({ supplierId: 1, material: po.material, quantity: po.qty, notes: null });
-    } catch { /* add locally */ }
-    setSupplierOrders((prev) => [{ id, ...po, orderDate: dateStr, actualDel: "–" }, ...prev]);
+    const supplier = suppliers.find(s => s.name.toLowerCase() === po.supplier.toLowerCase());
+    if (!supplier) throw new Error("Select an existing supplier before creating a purchase order.");
+    await createPurchaseOrder({
+      supplierId: supplier.id,
+      material: po.material,
+      quantity: po.qty,
+      unit: po.qty.match(/[a-zA-Z]+/)?.[0] ?? null,
+      totalCost: po.cost.replace(/[₹,\s]/g, "") || null,
+      expectedDelivery: po.expectedDel ? new Date(po.expectedDel).toISOString() : null,
+      notes: null,
+    });
+    await loadAll();
     setPendingPO(null);
     showSonnerToast.success(`PO ${id} created — supplier notified`);
   };
@@ -498,8 +536,8 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
 
   return (
     <>
-    {showNewOrder && <NewClientOrderModal onClose={() => setShowNewOrder(false)} onSubmit={handleAddOrder} />}
-    {showNewPO && <POModal prefill={poPrefill} onClose={() => { setShowNewPO(false); setPendingPO(null); }} onSubmit={handleAddPO} />}
+    {showNewOrder && <NewClientOrderModal clients={clients} onClose={() => setShowNewOrder(false)} onSubmit={handleAddOrder} />}
+    {showNewPO && <POModal suppliers={suppliers} prefill={poPrefill} onClose={() => { setShowNewPO(false); setPendingPO(null); }} onSubmit={handleAddPO} />}
     {selectedOrder && !dispatchOrder && (
       <OrderDetailModal
         order={selectedOrder}

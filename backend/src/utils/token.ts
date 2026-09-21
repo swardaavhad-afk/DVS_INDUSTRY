@@ -23,20 +23,16 @@ export function parseExpiresInMs(value: string): number {
 export function generateAccessToken(payload: JwtAccessPayload): string {
   const { sub, email, role } = payload;
   // Pass options as a separate object — required by @types/jsonwebtoken
-  return jwt.sign(
-    { sub, email, role },
-    env.JWT_SECRET,
-    { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions,
-  );
+  return jwt.sign({ sub, email, role }, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN,
+  } as jwt.SignOptions);
 }
 
 export function generateRefreshToken(payload: JwtRefreshPayload): string {
   const { sub, jti } = payload;
-  return jwt.sign(
-    { sub, jti },
-    env.REFRESH_TOKEN_SECRET,
-    { expiresIn: env.REFRESH_TOKEN_EXPIRES_IN } as jwt.SignOptions,
-  );
+  return jwt.sign({ sub, jti }, env.REFRESH_TOKEN_SECRET, {
+    expiresIn: env.REFRESH_TOKEN_EXPIRES_IN,
+  } as jwt.SignOptions);
 }
 
 export function verifyAccessToken(token: string): JwtAccessPayload {
@@ -45,10 +41,7 @@ export function verifyAccessToken(token: string): JwtAccessPayload {
 }
 
 export function verifyRefreshToken(token: string): JwtRefreshPayload {
-  return jwt.verify(
-    token,
-    env.REFRESH_TOKEN_SECRET,
-  ) as unknown as JwtRefreshPayload;
+  return jwt.verify(token, env.REFRESH_TOKEN_SECRET) as unknown as JwtRefreshPayload;
 }
 
 /** Cryptographically-random opaque token (for password reset). */

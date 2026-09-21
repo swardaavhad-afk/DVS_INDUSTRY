@@ -2,11 +2,7 @@ import type { IRefreshTokenRepository } from '../interfaces';
 import { prisma } from '../lib/prismaClient';
 
 export class RefreshTokenRepository implements IRefreshTokenRepository {
-  async create(data: {
-    token: string;
-    userId: number;
-    expiresAt: Date;
-  }): Promise<void> {
+  async create(data: { token: string; userId: number; expiresAt: Date }): Promise<void> {
     await prisma.refreshToken.create({ data });
   }
 

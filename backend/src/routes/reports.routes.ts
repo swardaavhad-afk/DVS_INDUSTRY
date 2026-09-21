@@ -11,10 +11,17 @@ const router = Router();
 router.use(authenticate);
 
 // ── Role groups ───────────────────────────────────────────────────────────────
-const ALL_ROLES    = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.STORE, ROLES.PRODUCTION, ROLES.SALES] as const;
+const ALL_ROLES = [
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.HR,
+  ROLES.STORE,
+  ROLES.PRODUCTION,
+  ROLES.SALES,
+] as const;
 const REPORT_ROLES = [ROLES.ADMIN, ROLES.MANAGER] as const;
-const STORE_ROLES  = [ROLES.ADMIN, ROLES.MANAGER, ROLES.STORE] as const;
-const HR_ROLES     = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR] as const;
+const STORE_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.STORE] as const;
+const HR_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR] as const;
 
 // ════════════════════════════════════════════════════════════════
 // DASHBOARD
@@ -25,11 +32,7 @@ const HR_ROLES     = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR] as const;
  * Combined KPIs + chart data in a single call.
  * Access: All authenticated roles
  */
-router.get(
-  '/dashboard',
-  authorize(...ALL_ROLES),
-  asyncHandler(ReportsController.getDashboard),
-);
+router.get('/dashboard', authorize(...ALL_ROLES), asyncHandler(ReportsController.getDashboard));
 
 /**
  * GET /api/v1/reports/dashboard/kpis

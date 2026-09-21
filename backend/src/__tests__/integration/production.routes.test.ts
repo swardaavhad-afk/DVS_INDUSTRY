@@ -6,25 +6,38 @@ import request from 'supertest';
 import type { Express } from 'express';
 
 vi.mock('../../config/env', () => ({
-  env: { NODE_ENV: 'test', PORT: 3001, DATABASE_URL: 'postgresql://test:test@localhost/test', JWT_SECRET: 'test-secret-at-least-32-characters-long!!', JWT_EXPIRES_IN: '15m', REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!', REFRESH_TOKEN_EXPIRES_IN: '7d', BCRYPT_SALT_ROUNDS: 10, CORS_ORIGINS: 'http://localhost:5173', LOG_LEVEL: 'silent' },
+  env: {
+    NODE_ENV: 'test',
+    PORT: 3001,
+    DATABASE_URL: 'postgresql://test:test@localhost/test',
+    JWT_SECRET: 'test-secret-at-least-32-characters-long!!',
+    JWT_EXPIRES_IN: '15m',
+    REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!',
+    REFRESH_TOKEN_EXPIRES_IN: '7d',
+    BCRYPT_SALT_ROUNDS: 10,
+    CORS_ORIGINS: 'http://localhost:5173',
+    LOG_LEVEL: 'silent',
+  },
 }));
 
 vi.mock('../../lib/prismaClient', () => ({
   prisma: {
     workOrder: {
-      findFirst:  vi.fn(),
-      create:     vi.fn(),
-      update:     vi.fn(),
-      findMany:   vi.fn().mockResolvedValue([]),
-      count:      vi.fn().mockResolvedValue(0),
-      groupBy:    vi.fn().mockResolvedValue([]),
-      aggregate:  vi.fn().mockResolvedValue({ _sum: { targetQuantity: null } }),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+      groupBy: vi.fn().mockResolvedValue([]),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { targetQuantity: null } }),
     },
     workOrderOutput: {
-      create:    vi.fn(),
-      findMany:  vi.fn().mockResolvedValue([]),
-      count:     vi.fn().mockResolvedValue(0),
-      aggregate: vi.fn().mockResolvedValue({ _sum: { goodQty: null, rejectedQty: null, scrapQty: null } }),
+      create: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+      aggregate: vi
+        .fn()
+        .mockResolvedValue({ _sum: { goodQty: null, rejectedQty: null, scrapQty: null } }),
     },
     $transaction: vi.fn((arg: unknown) => {
       if (Array.isArray(arg)) return Promise.all(arg as Promise<unknown>[]);
@@ -38,20 +51,27 @@ vi.mock('../../lib/prismaClient', () => ({
 // but groupBy returns items that are read with r._count.id — ensure shape is correct.
 
 vi.mock('../../logger', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), http: vi.fn(), debug: vi.fn(), log: vi.fn() },
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    http: vi.fn(),
+    debug: vi.fn(),
+    log: vi.fn(),
+  },
 }));
 
 vi.mock('../../utils/token', () => ({
-  generateAccessToken:  vi.fn(),
+  generateAccessToken: vi.fn(),
   generateRefreshToken: vi.fn(),
   verifyAccessToken: vi.fn((token: string) => {
     if (token === 'admin-tok') return { sub: 1, email: 'admin@test.com', role: 'ADMIN' };
-    if (token === 'prod-tok')  return { sub: 3, email: 'prod@test.com',  role: 'PRODUCTION' };
+    if (token === 'prod-tok') return { sub: 3, email: 'prod@test.com', role: 'PRODUCTION' };
     if (token === 'sales-tok') return { sub: 4, email: 'sales@test.com', role: 'SALES' };
     throw new Error('invalid');
   }),
   parseExpiresInMs: vi.fn().mockReturnValue(900000),
-  generateJti:      vi.fn().mockReturnValue('jti'),
+  generateJti: vi.fn().mockReturnValue('jti'),
   generateOpaqueToken: vi.fn().mockReturnValue('opaque'),
 }));
 
@@ -59,19 +79,36 @@ import { prisma } from '../../lib/prismaClient';
 import { verifyAccessToken } from '../../utils/token';
 
 const makeWO = (status = 'RELEASED') => ({
-  id: 1, workOrderNumber: 'WO-0001', product: 'Part', unit: 'pcs',
+  id: 1,
+  workOrderNumber: 'WO-0001',
+  product: 'Part',
+  unit: 'pcs',
   targetQuantity: { toNumber: () => 100, toString: () => '100' },
-  status, priority: 'NORMAL',
-  departmentId: null, departmentName: null,
-  assignedToId: null, assignedToName: null,
-  clientOrderId: null, notes: null, createdById: null,
-  scheduledStart: null, scheduledEnd: null, actualStart: null, actualEnd: null,
-  createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
-  outputs: [], _count: { outputs: 0 },
+  status,
+  priority: 'NORMAL',
+  departmentId: null,
+  departmentName: null,
+  assignedToId: null,
+  assignedToName: null,
+  clientOrderId: null,
+  notes: null,
+  createdById: null,
+  scheduledStart: null,
+  scheduledEnd: null,
+  actualStart: null,
+  actualEnd: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
+  outputs: [],
+  _count: { outputs: 0 },
 });
 
 let app: Express;
-beforeAll(async () => { const m = await import('../../app'); app = m.default; });
+beforeAll(async () => {
+  const m = await import('../../app');
+  app = m.default;
+});
 afterAll(() => vi.clearAllMocks());
 
 describe('GET /api/v1/production/work-orders', () => {
@@ -81,7 +118,11 @@ describe('GET /api/v1/production/work-orders', () => {
   });
 
   it('returns 200 for ADMIN', async () => {
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 1, email: 'admin@test.com', role: 'ADMIN' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 1,
+      email: 'admin@test.com',
+      role: 'ADMIN',
+    });
 
     const res = await request(app)
       .get('/api/v1/production/work-orders')
@@ -93,7 +134,11 @@ describe('GET /api/v1/production/work-orders', () => {
   });
 
   it('returns 200 for PRODUCTION role', async () => {
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 3, email: 'prod@test.com', role: 'PRODUCTION' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 3,
+      email: 'prod@test.com',
+      role: 'PRODUCTION',
+    });
 
     const res = await request(app)
       .get('/api/v1/production/work-orders')
@@ -103,7 +148,11 @@ describe('GET /api/v1/production/work-orders', () => {
   });
 
   it('returns 403 for SALES role (not in PROD_READ)', async () => {
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 4, email: 'sales@test.com', role: 'SALES' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 4,
+      email: 'sales@test.com',
+      role: 'SALES',
+    });
 
     const res = await request(app)
       .get('/api/v1/production/work-orders')
@@ -116,7 +165,11 @@ describe('GET /api/v1/production/work-orders', () => {
 describe('POST /api/v1/production/work-orders', () => {
   it('returns 403 for PRODUCTION role (can create WOs)', async () => {
     // PRODUCTION is in PROD_WRITE so should be allowed
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 3, email: 'prod@test.com', role: 'PRODUCTION' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 3,
+      email: 'prod@test.com',
+      role: 'PRODUCTION',
+    });
     (prisma.workOrder.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null); // no existing WO
     (prisma.workOrder.create as ReturnType<typeof vi.fn>).mockResolvedValue(makeWO('DRAFT'));
 
@@ -130,7 +183,11 @@ describe('POST /api/v1/production/work-orders', () => {
   });
 
   it('returns 422 for missing required fields', async () => {
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 1, email: 'admin@test.com', role: 'ADMIN' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 1,
+      email: 'admin@test.com',
+      role: 'ADMIN',
+    });
 
     const res = await request(app)
       .post('/api/v1/production/work-orders')
@@ -143,7 +200,11 @@ describe('POST /api/v1/production/work-orders', () => {
 
 describe('GET /api/v1/production/kpis', () => {
   it('returns 200 for ADMIN', async () => {
-    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 1, email: 'admin@test.com', role: 'ADMIN' });
+    (verifyAccessToken as ReturnType<typeof vi.fn>).mockReturnValue({
+      sub: 1,
+      email: 'admin@test.com',
+      role: 'ADMIN',
+    });
     // Individual mocks already set to return 0/[] by default — $transaction passes through promises
 
     const res = await request(app)

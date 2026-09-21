@@ -10,13 +10,7 @@ import { HTTP_STATUS } from '../constants';
  * Must be registered LAST — after all routes and other middleware.
  * Express identifies it as an error handler by the 4-argument signature.
  */
-export function errorHandler(
-  err: unknown,
-  req: Request,
-  res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _next: NextFunction,
-): void {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   // ── Zod validation errors ──────────────────────────────────────
   if (err instanceof ZodError) {
     const details = err.issues.map((e) => ({

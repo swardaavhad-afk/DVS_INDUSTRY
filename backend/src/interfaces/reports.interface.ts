@@ -15,30 +15,30 @@ export interface DashboardKPIs {
   attendanceTodayAbsent: number;
   attendanceTodayLate: number;
   attendanceTodayOnLeave: number;
-  attendanceTodayRate: string;     // e.g. "91.3%"
+  attendanceTodayRate: string; // e.g. "91.3%"
 
   // Inventory
   totalMaterials: number;
   lowStockCount: number;
   outOfStockCount: number;
-  totalInventoryValue: string;   // ₹
+  totalInventoryValue: string; // ₹
 
   // Orders
   activeClientOrders: number;
   pendingClientOrders: number;
   dispatchedOrders: number;
   pendingPurchaseOrders: number;
-  orderFulfillmentRate: string;  // e.g. "97.2%"
+  orderFulfillmentRate: string; // e.g. "97.2%"
 
   // Scrap
-  totalScrapThisMonth: string;   // kg
-  scrapValueThisMonth: string;   // ₹
+  totalScrapThisMonth: string; // kg
+  scrapValueThisMonth: string; // ₹
 
   // Production (this month)
-  activeWorkOrders:      number;
-  completedWorkOrders:   number;
-  overdueWorkOrders:     number;
-  productionCompletionRate: string;  // e.g. "84.2%"
+  activeWorkOrders: number;
+  completedWorkOrders: number;
+  overdueWorkOrders: number;
+  productionCompletionRate: string; // e.g. "84.2%"
 
   // Departments
   totalDepartments: number;
@@ -46,7 +46,7 @@ export interface DashboardKPIs {
 }
 
 export interface OrderStatusCount {
-  name: string;        // "Pending", "In Production" etc.
+  name: string; // "Pending", "In Production" etc.
   value: number;
   color: string;
 }
@@ -57,12 +57,12 @@ export interface DeptScrapEntry {
 }
 
 export interface ScrapTrendEntry {
-  day: string;         // "Mon", "Tue" …
+  day: string; // "Mon", "Tue" …
   scrap: number;
 }
 
 export interface AttendanceTrendChartEntry {
-  date: string;        // "Mon", "Tue" …
+  date: string; // "Mon", "Tue" …
   present: number;
   absent: number;
   late: number;
@@ -76,15 +76,15 @@ export interface RecentOrder {
   product: string;
   qty: number;
   status: string;
-  date: string;        // human-readable "12 Jun"
+  date: string; // human-readable "12 Jun"
 }
 
 export interface DashboardCharts {
   orderStatusPie: OrderStatusCount[];
   scrapByDepartment: DeptScrapEntry[];
-  scrapTrend: ScrapTrendEntry[];              // last 7 days
+  scrapTrend: ScrapTrendEntry[]; // last 7 days
   attendanceTrend: AttendanceTrendChartEntry[]; // last 7 days
-  recentOrders: RecentOrder[];                // last 5
+  recentOrders: RecentOrder[]; // last 5
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -101,7 +101,7 @@ export interface InventoryReportRow {
   minStockLevel: string;
   costPerUnit: string;
   stockValue: string;
-  status: string;       // "In Stock" | "Low Stock" | "Out of Stock"
+  status: string; // "In Stock" | "Low Stock" | "Out of Stock"
   location: string;
 }
 
@@ -255,40 +255,40 @@ export interface ClientReport {
 // ── Production report ─────────────────────────────────────────
 export interface ProductionReportRow {
   workOrderNumber: string;
-  product:         string;
-  department:      string;
-  priority:        string;
-  status:          string;
-  targetQty:       string;
-  producedQty:     string;
-  rejectedQty:     string;
-  scrapQty:        string;
-  completionRate:  string;
-  scheduledStart:  string;
-  scheduledEnd:    string;
-  actualStart:     string;
-  actualEnd:       string;
+  product: string;
+  department: string;
+  priority: string;
+  status: string;
+  targetQty: string;
+  producedQty: string;
+  rejectedQty: string;
+  scrapQty: string;
+  completionRate: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  actualStart: string;
+  actualEnd: string;
 }
 
 export interface ProductionReport {
   generatedAt: string;
-  period:      string;
+  period: string;
   summary: {
-    totalWorkOrders:       number;
-    completed:             number;
-    inProgress:            number;
-    cancelled:             number;
-    totalTargetQty:        string;
-    totalProducedQty:      string;
-    totalRejectedQty:      string;
-    totalScrapQty:         string;
+    totalWorkOrders: number;
+    completed: number;
+    inProgress: number;
+    cancelled: number;
+    totalTargetQty: string;
+    totalProducedQty: string;
+    totalRejectedQty: string;
+    totalScrapQty: string;
     overallCompletionRate: string;
-    rejectionRate:         string;
+    rejectionRate: string;
     byDepartment: Array<{
-      department:    string;
-      workOrders:    number;
-      produced:      string;
-      rejected:      string;
+      department: string;
+      workOrders: number;
+      produced: string;
+      rejected: string;
       completionRate: string;
     }>;
   };
@@ -309,7 +309,7 @@ export interface AttendanceReportRow {
   late: number;
   onLeave: number;
   totalWorkingHours: string;
-  attendanceRate: string;   // e.g. "94.7%"
+  attendanceRate: string; // e.g. "94.7%"
 }
 
 export interface AttendanceReport {

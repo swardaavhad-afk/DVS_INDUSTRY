@@ -47,18 +47,18 @@ export async function getKPIs(req: Request, res: Response): Promise<void> {
 export async function createIncident(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreateIncidentInput;
   const data: CreateIncidentData = {
-    title:          body.title,
-    description:    body.description,
-    type:           body.type as IncidentType,
-    severity:       body.severity as IncidentSeverity,
-    location:       body.location       ?? null,
-    departmentId:   body.departmentId   ?? null,
+    title: body.title,
+    description: body.description,
+    type: body.type as IncidentType,
+    severity: body.severity as IncidentSeverity,
+    location: body.location ?? null,
+    departmentId: body.departmentId ?? null,
     departmentName: body.departmentName ?? null,
-    reportedById:   body.reportedById   ?? req.user?.id  ?? null,
+    reportedById: body.reportedById ?? req.user?.id ?? null,
     reportedByName: body.reportedByName ?? null,
-    assignedToId:   body.assignedToId   ?? null,
+    assignedToId: body.assignedToId ?? null,
     assignedToName: body.assignedToName ?? null,
-    occurredAt:     body.occurredAt,
+    occurredAt: body.occurredAt,
   };
   sendCreated(res, await svc.createIncident(data), 'Security incident reported successfully');
 }
@@ -66,20 +66,28 @@ export async function createIncident(req: AuthenticatedRequest, res: Response): 
 export async function getAllIncidents(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as IncidentQueryInput;
   const filters: IncidentFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder,
-    status:   q.status   as IncidentStatus | 'all',
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
+    status: q.status as IncidentStatus | 'all',
     severity: q.severity as IncidentSeverity | 'all',
-    type:     q.type     as IncidentType | 'all',
+    type: q.type as IncidentType | 'all',
   };
-  if (q.search       !== undefined) filters.search       = q.search;
+  if (q.search !== undefined) filters.search = q.search;
   if (q.departmentId !== undefined) filters.departmentId = q.departmentId;
-  if (q.fromDate     !== undefined) filters.fromDate     = q.fromDate;
-  if (q.toDate       !== undefined) filters.toDate       = q.toDate;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
 
   const { data, total } = await svc.getAllIncidents(filters);
-  const page = q.page ?? 1; const pageSize = q.pageSize ?? 20;
-  sendSuccess(res, data, 200, undefined, { page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
+  const page = q.page ?? 1;
+  const pageSize = q.pageSize ?? 20;
+  sendSuccess(res, data, 200, undefined, {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  });
 }
 
 export async function getIncidentById(req: Request, res: Response): Promise<void> {
@@ -91,45 +99,45 @@ export async function getIncidentDetail(req: Request, res: Response): Promise<vo
 }
 
 export async function updateIncident(req: Request, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as UpdateIncidentInput;
   const data: UpdateIncidentData = {};
-  if (body.title            !== undefined) data.title            = body.title;
-  if (body.description      !== undefined) data.description      = body.description;
-  if (body.type             !== undefined) data.type             = body.type as IncidentType;
-  if (body.severity         !== undefined) data.severity         = body.severity as IncidentSeverity;
-  if (body.status           !== undefined) data.status           = body.status as IncidentStatus;
-  if (body.location         !== undefined) data.location         = body.location;
-  if (body.departmentId     !== undefined) data.departmentId     = body.departmentId;
-  if (body.departmentName   !== undefined) data.departmentName   = body.departmentName;
-  if (body.assignedToId     !== undefined) data.assignedToId     = body.assignedToId;
-  if (body.assignedToName   !== undefined) data.assignedToName   = body.assignedToName;
-  if (body.occurredAt       !== undefined) data.occurredAt       = body.occurredAt;
-  if (body.resolvedAt       !== undefined) data.resolvedAt       = body.resolvedAt;
-  if (body.closedAt         !== undefined) data.closedAt         = body.closedAt;
-  if (body.rootCause        !== undefined) data.rootCause        = body.rootCause;
+  if (body.title !== undefined) data.title = body.title;
+  if (body.description !== undefined) data.description = body.description;
+  if (body.type !== undefined) data.type = body.type as IncidentType;
+  if (body.severity !== undefined) data.severity = body.severity as IncidentSeverity;
+  if (body.status !== undefined) data.status = body.status as IncidentStatus;
+  if (body.location !== undefined) data.location = body.location;
+  if (body.departmentId !== undefined) data.departmentId = body.departmentId;
+  if (body.departmentName !== undefined) data.departmentName = body.departmentName;
+  if (body.assignedToId !== undefined) data.assignedToId = body.assignedToId;
+  if (body.assignedToName !== undefined) data.assignedToName = body.assignedToName;
+  if (body.occurredAt !== undefined) data.occurredAt = body.occurredAt;
+  if (body.resolvedAt !== undefined) data.resolvedAt = body.resolvedAt;
+  if (body.closedAt !== undefined) data.closedAt = body.closedAt;
+  if (body.rootCause !== undefined) data.rootCause = body.rootCause;
   if (body.correctiveAction !== undefined) data.correctiveAction = body.correctiveAction;
 
   sendSuccess(res, await svc.updateIncident(id, data), 200, 'Incident updated successfully');
 }
 
 export async function transitionStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as IncidentStatusInput;
   const incident = await svc.transitionIncidentStatus(
     id,
     body.status as IncidentStatus,
-    body.comment       ?? null,
-    body.updatedById   ?? req.user?.id ?? null,
+    body.comment ?? null,
+    body.updatedById ?? req.user?.id ?? null,
     body.updatedByName ?? null,
-    body.rootCause        ?? null,
+    body.rootCause ?? null,
     body.correctiveAction ?? null,
   );
   sendSuccess(res, incident, 200, `Incident status updated to ${incident.status}`);
 }
 
 export async function assignIncident(req: Request, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as AssignIncidentInput;
   sendSuccess(
     res,
@@ -148,11 +156,11 @@ export async function deleteIncident(req: Request, res: Response): Promise<void>
 
 export async function addIncidentUpdate(req: AuthenticatedRequest, res: Response): Promise<void> {
   const incidentId = parseId(req.params['id']);
-  const body       = req.body as CreateIncidentUpdateInput;
+  const body = req.body as CreateIncidentUpdateInput;
   const update = await svc.addUpdate(incidentId, {
-    comment:       body.comment,
-    statusChange:  (body.statusChange ?? null) as IncidentStatus | null,
-    updatedById:   body.updatedById   ?? req.user?.id ?? null,
+    comment: body.comment,
+    statusChange: (body.statusChange ?? null) as IncidentStatus | null,
+    updatedById: body.updatedById ?? req.user?.id ?? null,
     updatedByName: body.updatedByName ?? null,
   });
   sendCreated(res, update, 'Incident update added');
@@ -165,7 +173,7 @@ export async function getIncidentUpdates(req: Request, res: Response): Promise<v
 
 export async function deleteIncidentUpdate(req: Request, res: Response): Promise<void> {
   const incidentId = parseId(req.params['id']);
-  const updateId   = parseId(req.params['updateId']);
+  const updateId = parseId(req.params['updateId']);
   await svc.deleteUpdate(incidentId, updateId);
   sendNoContent(res);
 }
@@ -175,17 +183,17 @@ export async function deleteIncidentUpdate(req: Request, res: Response): Promise
 export async function createAlert(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreateAlertInput;
   const data: CreateAlertData = {
-    title:          body.title,
-    message:        body.message,
-    type:           body.type as AlertType,
-    severity:       body.severity as IncidentSeverity,
-    source:         body.source         ?? null,
-    location:       body.location       ?? null,
-    departmentId:   body.departmentId   ?? null,
+    title: body.title,
+    message: body.message,
+    type: body.type as AlertType,
+    severity: body.severity as IncidentSeverity,
+    source: body.source ?? null,
+    location: body.location ?? null,
+    departmentId: body.departmentId ?? null,
     departmentName: body.departmentName ?? null,
-    incidentId:     body.incidentId     ?? null,
-    expiresAt:      body.expiresAt      ?? null,
-    createdById:    body.createdById    ?? req.user?.id ?? null,
+    incidentId: body.incidentId ?? null,
+    expiresAt: body.expiresAt ?? null,
+    createdById: body.createdById ?? req.user?.id ?? null,
   };
   sendCreated(res, await svc.createAlert(data), 'Security alert created successfully');
 }
@@ -193,21 +201,29 @@ export async function createAlert(req: AuthenticatedRequest, res: Response): Pro
 export async function getAllAlerts(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as AlertQueryInput;
   const filters: AlertFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder,
-    type:     q.type     as AlertType | 'all',
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
+    type: q.type as AlertType | 'all',
     severity: q.severity as IncidentSeverity | 'all',
-    status:   q.status   as 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED' | 'EXPIRED' | 'all',
+    status: q.status as 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED' | 'EXPIRED' | 'all',
   };
-  if (q.search       !== undefined) filters.search       = q.search;
+  if (q.search !== undefined) filters.search = q.search;
   if (q.departmentId !== undefined) filters.departmentId = q.departmentId;
-  if (q.incidentId   !== undefined) filters.incidentId   = q.incidentId;
-  if (q.fromDate     !== undefined) filters.fromDate     = q.fromDate;
-  if (q.toDate       !== undefined) filters.toDate       = q.toDate;
+  if (q.incidentId !== undefined) filters.incidentId = q.incidentId;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
 
   const { data, total } = await svc.getAllAlerts(filters);
-  const page = q.page ?? 1; const pageSize = q.pageSize ?? 20;
-  sendSuccess(res, data, 200, undefined, { page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
+  const page = q.page ?? 1;
+  const pageSize = q.pageSize ?? 20;
+  sendSuccess(res, data, 200, undefined, {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  });
 }
 
 export async function getAlertById(req: Request, res: Response): Promise<void> {
@@ -215,38 +231,38 @@ export async function getAlertById(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateAlert(req: Request, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as UpdateAlertInput;
   const data: UpdateAlertData = {};
-  if (body.title          !== undefined) data.title          = body.title;
-  if (body.message        !== undefined) data.message        = body.message;
-  if (body.type           !== undefined) data.type           = body.type as AlertType;
-  if (body.severity       !== undefined) data.severity       = body.severity as IncidentSeverity;
-  if (body.source         !== undefined) data.source         = body.source;
-  if (body.location       !== undefined) data.location       = body.location;
-  if (body.departmentId   !== undefined) data.departmentId   = body.departmentId;
+  if (body.title !== undefined) data.title = body.title;
+  if (body.message !== undefined) data.message = body.message;
+  if (body.type !== undefined) data.type = body.type as AlertType;
+  if (body.severity !== undefined) data.severity = body.severity as IncidentSeverity;
+  if (body.source !== undefined) data.source = body.source;
+  if (body.location !== undefined) data.location = body.location;
+  if (body.departmentId !== undefined) data.departmentId = body.departmentId;
   if (body.departmentName !== undefined) data.departmentName = body.departmentName;
-  if (body.incidentId     !== undefined) data.incidentId     = body.incidentId;
-  if (body.expiresAt      !== undefined) data.expiresAt      = body.expiresAt;
+  if (body.incidentId !== undefined) data.incidentId = body.incidentId;
+  if (body.expiresAt !== undefined) data.expiresAt = body.expiresAt;
 
   sendSuccess(res, await svc.updateAlert(id, data), 200, 'Alert updated successfully');
 }
 
 export async function acknowledgeAlert(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as AcknowledgeAlertInput;
   const alert = await svc.acknowledgeAlert(id, {
-    acknowledgedById:   body.acknowledgedById   ?? req.user?.id ?? null,
+    acknowledgedById: body.acknowledgedById ?? req.user?.id ?? null,
     acknowledgedByName: body.acknowledgedByName ?? null,
   });
   sendSuccess(res, alert, 200, 'Alert acknowledged');
 }
 
 export async function resolveAlert(req: AuthenticatedRequest, res: Response): Promise<void> {
-  const id   = parseId(req.params['id']);
+  const id = parseId(req.params['id']);
   const body = req.body as ResolveAlertInput;
   const alert = await svc.resolveAlert(id, {
-    resolvedById:   body.resolvedById   ?? req.user?.id ?? null,
+    resolvedById: body.resolvedById ?? req.user?.id ?? null,
     resolvedByName: body.resolvedByName ?? null,
   });
   sendSuccess(res, alert, 200, 'Alert resolved');

@@ -10,13 +10,30 @@ import type { Express } from 'express';
 // ── Mocks must be hoisted above imports ──────────────────────────────────────
 
 vi.mock('../../config/env', () => ({
-  env: { NODE_ENV: 'test', PORT: 3001, DATABASE_URL: 'postgresql://test:test@localhost/test', JWT_SECRET: 'test-secret-at-least-32-characters-long!!', JWT_EXPIRES_IN: '15m', REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!', REFRESH_TOKEN_EXPIRES_IN: '7d', BCRYPT_SALT_ROUNDS: 10, CORS_ORIGINS: 'http://localhost:5173', LOG_LEVEL: 'silent' },
+  env: {
+    NODE_ENV: 'test',
+    PORT: 3001,
+    DATABASE_URL: 'postgresql://test:test@localhost/test',
+    JWT_SECRET: 'test-secret-at-least-32-characters-long!!',
+    JWT_EXPIRES_IN: '15m',
+    REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!',
+    REFRESH_TOKEN_EXPIRES_IN: '7d',
+    BCRYPT_SALT_ROUNDS: 10,
+    CORS_ORIGINS: 'http://localhost:5173',
+    LOG_LEVEL: 'silent',
+  },
 }));
 
 vi.mock('../../lib/prismaClient', () => ({
   prisma: {
-    user:         { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), findMany: vi.fn(), count: vi.fn() },
-    role:         { findUnique: vi.fn(), findMany: vi.fn() },
+    user: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    role: { findUnique: vi.fn(), findMany: vi.fn() },
     refreshToken: { create: vi.fn(), findUnique: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn((fns: unknown[]) => Promise.all(fns as Promise<unknown>[])),
   },
@@ -24,21 +41,28 @@ vi.mock('../../lib/prismaClient', () => ({
 
 vi.mock('bcrypt', () => ({
   default: { hash: vi.fn().mockResolvedValue('$hashed$'), compare: vi.fn() },
-  hash:    vi.fn().mockResolvedValue('$hashed$'),
+  hash: vi.fn().mockResolvedValue('$hashed$'),
   compare: vi.fn(),
 }));
 
 vi.mock('../../utils/token', () => ({
-  generateAccessToken:  vi.fn().mockReturnValue('test-access-token'),
+  generateAccessToken: vi.fn().mockReturnValue('test-access-token'),
   generateRefreshToken: vi.fn().mockReturnValue('test-refresh-token'),
-  verifyRefreshToken:   vi.fn(),
-  parseExpiresInMs:     vi.fn().mockReturnValue(604800000),
-  generateJti:          vi.fn().mockReturnValue('jti-test'),
-  generateOpaqueToken:  vi.fn().mockReturnValue('opaque-test'),
+  verifyRefreshToken: vi.fn(),
+  parseExpiresInMs: vi.fn().mockReturnValue(604800000),
+  generateJti: vi.fn().mockReturnValue('jti-test'),
+  generateOpaqueToken: vi.fn().mockReturnValue('opaque-test'),
 }));
 
 vi.mock('../../logger', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), http: vi.fn(), debug: vi.fn(), log: vi.fn() },
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    http: vi.fn(),
+    debug: vi.fn(),
+    log: vi.fn(),
+  },
 }));
 
 // ── Load app after mocks ──────────────────────────────────────────────────────
@@ -49,11 +73,19 @@ import bcrypt from 'bcrypt';
 let app: Express;
 
 const mockUser = {
-  id: 1, fullName: 'Admin User', email: 'admin@test.com',
-  password: '$hashed$', phone: null, roleId: 1, isActive: true,
-  lastLogin: null, createdAt: new Date(), updatedAt: new Date(),
+  id: 1,
+  fullName: 'Admin User',
+  email: 'admin@test.com',
+  password: '$hashed$',
+  phone: null,
+  roleId: 1,
+  isActive: true,
+  lastLogin: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
   role: { id: 1, name: 'ADMIN', description: null, createdAt: new Date(), updatedAt: new Date() },
-  refreshTokens: [], employee: null,
+  refreshTokens: [],
+  employee: null,
 };
 
 beforeAll(async () => {
@@ -61,7 +93,9 @@ beforeAll(async () => {
   app = mod.default;
 });
 
-afterAll(() => { vi.clearAllMocks(); });
+afterAll(() => {
+  vi.clearAllMocks();
+});
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -105,9 +139,7 @@ describe('POST /api/v1/auth/login', () => {
   });
 
   it('returns 422 for missing fields', async () => {
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: 'admin@test.com' }); // no password
+    const res = await request(app).post('/api/v1/auth/login').send({ email: 'admin@test.com' }); // no password
 
     expect(res.status).toBe(422);
   });

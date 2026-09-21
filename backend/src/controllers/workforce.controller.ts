@@ -3,17 +3,24 @@ import type { AuthenticatedRequest } from '../types';
 import { WorkforceService } from '../services/workforce.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/response';
 import type {
-  CreateShiftInput, UpdateShiftInput, ShiftQueryInput,
-  CreateAttendanceInput, UpdateAttendanceInput,
-  ClockInInput, ClockOutInput,
+  CreateShiftInput,
+  UpdateShiftInput,
+  ShiftQueryInput,
+  CreateAttendanceInput,
+  UpdateAttendanceInput,
+  ClockInInput,
+  ClockOutInput,
   BulkAttendanceInput,
   AttendanceQueryInput,
   AttendanceSummaryInput,
   AttendanceTrendInput,
 } from '../validators/workforce.validator';
 import type {
-  ShiftFilters, AttendanceFilters, UpdateAttendanceData,
-  UpdateShiftData, BulkAttendanceEntry,
+  ShiftFilters,
+  AttendanceFilters,
+  UpdateAttendanceData,
+  UpdateShiftData,
+  BulkAttendanceEntry,
 } from '../interfaces';
 
 const svc = new WorkforceService();
@@ -39,8 +46,10 @@ export async function createShift(req: Request, res: Response): Promise<void> {
 export async function getAllShifts(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as ShiftQueryInput;
   const filters: ShiftFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
   };
   if (q.search !== undefined) filters.search = q.search;
 
@@ -48,7 +57,10 @@ export async function getAllShifts(req: Request, res: Response): Promise<void> {
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 50;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -60,9 +72,9 @@ export async function updateShift(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const body = req.body as UpdateShiftInput;
   const data: UpdateShiftData = {};
-  if (body.name !== undefined)        data.name        = body.name;
-  if (body.startTime !== undefined)   data.startTime   = body.startTime;
-  if (body.endTime !== undefined)     data.endTime     = body.endTime;
+  if (body.name !== undefined) data.name = body.name;
+  if (body.startTime !== undefined) data.startTime = body.startTime;
+  if (body.endTime !== undefined) data.endTime = body.endTime;
   if (body.isNightShift !== undefined) data.isNightShift = body.isNightShift;
   if (body.description !== undefined) data.description = body.description;
 
@@ -92,20 +104,25 @@ export async function createAttendance(req: Request, res: Response): Promise<voi
 export async function getAllAttendance(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as AttendanceQueryInput;
   const filters: AttendanceFilters = {
-    page: q.page, pageSize: q.pageSize, sortOrder: q.sortOrder,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortOrder: q.sortOrder,
     status: q.status,
   };
-  if (q.employeeId !== undefined)   filters.employeeId   = q.employeeId;
+  if (q.employeeId !== undefined) filters.employeeId = q.employeeId;
   if (q.departmentId !== undefined) filters.departmentId = q.departmentId;
-  if (q.date !== undefined)         filters.date         = q.date;
-  if (q.fromDate !== undefined)     filters.fromDate     = q.fromDate;
-  if (q.toDate !== undefined)       filters.toDate       = q.toDate;
+  if (q.date !== undefined) filters.date = q.date;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
 
   const { data, total } = await svc.getAllAttendance(filters);
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 20;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -117,10 +134,10 @@ export async function updateAttendance(req: Request, res: Response): Promise<voi
   const id = parseId(req.params['id']);
   const body = req.body as UpdateAttendanceInput;
   const data: UpdateAttendanceData = {};
-  if (body.status !== undefined)   data.status   = body.status;
-  if (body.clockIn !== undefined)  data.clockIn  = body.clockIn;
+  if (body.status !== undefined) data.status = body.status;
+  if (body.clockIn !== undefined) data.clockIn = body.clockIn;
   if (body.clockOut !== undefined) data.clockOut = body.clockOut;
-  if (body.remarks !== undefined)  data.remarks  = body.remarks;
+  if (body.remarks !== undefined) data.remarks = body.remarks;
 
   sendSuccess(res, await svc.updateAttendance(id, data), 200, 'Attendance updated successfully');
 }
@@ -132,10 +149,7 @@ export async function deleteAttendance(req: Request, res: Response): Promise<voi
 
 // ── Clock in ──────────────────────────────────────────────────────────────────
 
-export async function clockIn(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function clockIn(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as ClockInInput;
   const record = await svc.clockIn(
     body.employeeId,
@@ -150,11 +164,7 @@ export async function clockIn(
 export async function clockOut(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const body = req.body as ClockOutInput;
-  const record = await svc.clockOut(
-    id,
-    body.clockOut ?? new Date(),
-    body.remarks ?? null,
-  );
+  const record = await svc.clockOut(id, body.clockOut ?? new Date(), body.remarks ?? null);
   sendSuccess(res, record, 200, 'Clock-out recorded successfully');
 }
 
@@ -162,7 +172,7 @@ export async function clockOut(req: Request, res: Response): Promise<void> {
 
 export async function bulkMarkAttendance(req: Request, res: Response): Promise<void> {
   const body = req.body as BulkAttendanceInput;
-  const entries: BulkAttendanceEntry[] = body.entries.map(e => ({
+  const entries: BulkAttendanceEntry[] = body.entries.map((e) => ({
     employeeId: e.employeeId,
     status: e.status,
     clockIn: e.clockIn ?? null,
@@ -177,18 +187,12 @@ export async function bulkMarkAttendance(req: Request, res: Response): Promise<v
 
 export async function getDailySummary(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as AttendanceSummaryInput;
-  const summary = await svc.getDailySummary(
-    q.date,
-    q.departmentId,
-  );
+  const summary = await svc.getDailySummary(q.date, q.departmentId);
   sendSuccess(res, summary);
 }
 
 export async function getAttendanceTrend(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as AttendanceTrendInput;
-  const trend = await svc.getAttendanceTrend(
-    q.days ?? 7,
-    q.departmentId,
-  );
+  const trend = await svc.getAttendanceTrend(q.days ?? 7, q.departmentId);
   sendSuccess(res, trend);
 }

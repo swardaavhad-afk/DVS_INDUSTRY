@@ -1,10 +1,6 @@
 import bcrypt from 'bcrypt';
 import { env } from '../config/env';
-import {
-  UserRepository,
-  RoleRepository,
-  RefreshTokenRepository,
-} from '../repositories';
+import { UserRepository, RoleRepository, RefreshTokenRepository } from '../repositories';
 import type {
   UserDto,
   TokenPair,
@@ -62,20 +58,14 @@ export class AuthService {
       throw new BadRequestError(`Role with id ${data.roleId} does not exist`);
     }
 
-    const hashedPassword = await bcrypt.hash(
-      data.password,
-      env.BCRYPT_SALT_ROUNDS,
-    );
+    const hashedPassword = await bcrypt.hash(data.password, env.BCRYPT_SALT_ROUNDS);
 
     return this.userRepo.create({ ...data, password: hashedPassword });
   }
 
   // ── Login ─────────────────────────────────────────────────────────────────
 
-  async login(
-    email: string,
-    password: string,
-  ): Promise<{ user: UserDto; tokens: TokenPair }> {
+  async login(email: string, password: string): Promise<{ user: UserDto; tokens: TokenPair }> {
     const userWithPassword = await this.userRepo.findByEmail(email);
 
     if (userWithPassword === null) {
@@ -88,10 +78,7 @@ export class AuthService {
       throw new ForbiddenError('Your account has been deactivated');
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      userWithPassword.password,
-    );
+    const isPasswordValid = await bcrypt.compare(password, userWithPassword.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedError('Invalid email or password');
@@ -128,8 +115,7 @@ export class AuthService {
     }
 
     // 2. Check it still exists in DB (detect theft / reuse)
-    const storedToken =
-      await this.refreshTokenRepo.findByToken(rawRefreshToken);
+    const storedToken = await this.refreshTokenRepo.findByToken(rawRefreshToken);
     if (storedToken === null) {
       // Token rotation attack — invalidate all tokens for this user
       await this.refreshTokenRepo.deleteAllByUserId(payload.sub);
@@ -157,10 +143,7 @@ export class AuthService {
 
   // ── Change Password ───────────────────────────────────────────────────────
 
-  async changePassword(
-    userId: number,
-    data: ChangePasswordData,
-  ): Promise<void> {
+  async changePassword(userId: number, data: ChangePasswordData): Promise<void> {
     const userWithPassword = await this.userRepo.findByEmail(
       (await this.userRepo.findById(userId))?.email ?? '',
     );
@@ -169,18 +152,13 @@ export class AuthService {
       throw new NotFoundError('User not found');
     }
 
-    const isValid = await bcrypt.compare(
-      data.currentPassword,
-      userWithPassword.password,
-    );
+    const isValid = await bcrypt.compare(data.currentPassword, userWithPassword.password);
     if (!isValid) {
       throw new BadRequestError('Current password is incorrect');
     }
 
     if (data.currentPassword === data.newPassword) {
-      throw new BadRequestError(
-        'New password must be different from the current password',
-      );
+      throw new BadRequestError('New password must be different from the current password');
     }
 
     const hashed = await bcrypt.hash(data.newPassword, env.BCRYPT_SALT_ROUNDS);
@@ -192,9 +170,7 @@ export class AuthService {
 
   // ── Forgot Password ───────────────────────────────────────────────────────
 
-  async forgotPassword(
-    email: string,
-  ): Promise<{ resetToken: string; user: UserDto }> {
+  async forgotPassword(email: string): Promise<{ resetToken: string; user: UserDto }> {
     const user = await this.userRepo.findByEmail(email);
 
     // Always respond the same way — don't reveal if email exists
@@ -260,10 +236,7 @@ export class AuthService {
 
   // ── Update Profile ────────────────────────────────────────────────────────
 
-  async updateProfile(
-    userId: number,
-    data: Partial<UpdateUserData>,
-  ): Promise<UserDto> {
+  async updateProfile(userId: number, data: Partial<UpdateUserData>): Promise<UserDto> {
     const user = await this.userRepo.findById(userId);
     if (user === null) throw new NotFoundError('User not found');
     return this.userRepo.update(userId, data);
@@ -308,9 +281,7 @@ export class AuthService {
     const accessToken = generateAccessToken({ sub: userId, email, role: roleName });
     const refreshToken = generateRefreshToken({ sub: userId, jti });
 
-    const expiresAt = new Date(
-      Date.now() + parseExpiresInMs(env.REFRESH_TOKEN_EXPIRES_IN),
-    );
+    const expiresAt = new Date(Date.now() + parseExpiresInMs(env.REFRESH_TOKEN_EXPIRES_IN));
 
     await this.refreshTokenRepo.create({
       token: refreshToken,

@@ -41,10 +41,10 @@ import { logger } from '../logger';
  */
 
 const ALLOWED_INCIDENT_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  OPEN:          ['INVESTIGATING', 'RESOLVED'],
+  OPEN: ['INVESTIGATING', 'RESOLVED'],
   INVESTIGATING: ['RESOLVED'],
-  RESOLVED:      ['CLOSED'],
-  CLOSED:        [],
+  RESOLVED: ['CLOSED'],
+  CLOSED: [],
 };
 
 export class SecurityService {
@@ -71,7 +71,7 @@ export class SecurityService {
       if (!allowed.includes(data.status)) {
         throw new BadRequestError(
           `Cannot transition incident from ${existing.status} to ${data.status}. ` +
-          `Allowed: ${allowed.join(', ') || 'none'}`,
+            `Allowed: ${allowed.join(', ') || 'none'}`,
         );
       }
       // Rule 2 & 3 — auto-set timestamps
@@ -125,18 +125,17 @@ export class SecurityService {
   ): Promise<SecurityIncidentDto> {
     const incident = await this.updateIncident(id, {
       status,
-      ...(rootCause        !== undefined && { rootCause }),
+      ...(rootCause !== undefined && { rootCause }),
       ...(correctiveAction !== undefined && { correctiveAction }),
     });
 
     // Add an automatic update entry if a comment or status change occurred
-    const updateComment = comment?.trim() ||
-      `Status changed to ${status}`;
+    const updateComment = comment?.trim() || `Status changed to ${status}`;
     await this.repo.addIncidentUpdate({
-      incidentId:    id,
-      comment:       updateComment,
-      statusChange:  status,
-      updatedById:   updatedById   ?? null,
+      incidentId: id,
+      comment: updateComment,
+      statusChange: status,
+      updatedById: updatedById ?? null,
       updatedByName: updatedByName ?? null,
     });
 
@@ -151,7 +150,10 @@ export class SecurityService {
     assignedToName?: string | null,
   ): Promise<SecurityIncidentDto> {
     await this.getIncidentOrThrow(id);
-    const incident = await this.repo.updateIncident(id, { assignedToId, assignedToName: assignedToName ?? null });
+    const incident = await this.repo.updateIncident(id, {
+      assignedToId,
+      assignedToName: assignedToName ?? null,
+    });
     logger.info('Incident assigned', { id, assignedToId });
     return incident;
   }
@@ -176,7 +178,7 @@ export class SecurityService {
       await this.repo.updateIncident(incidentId, {
         status: data.statusChange,
         ...(data.statusChange === 'RESOLVED' ? { resolvedAt: new Date() } : {}),
-        ...(data.statusChange === 'CLOSED'   ? { closedAt:   new Date() } : {}),
+        ...(data.statusChange === 'CLOSED' ? { closedAt: new Date() } : {}),
       });
     }
 
@@ -218,9 +220,7 @@ export class SecurityService {
 
     // Rule 6 — terminal check
     if (existing.status === 'RESOLVED' || existing.status === 'EXPIRED') {
-      throw new BadRequestError(
-        `Cannot update a ${existing.status.toLowerCase()} alert`,
-      );
+      throw new BadRequestError(`Cannot update a ${existing.status.toLowerCase()} alert`);
     }
 
     if (data.incidentId != null) {
@@ -286,11 +286,7 @@ export class SecurityService {
 
   // ══ KPIs ═════════════════════════════════════════════════════════════════
 
-  async getKPIs(
-    departmentId?: number,
-    fromDate?: Date,
-    toDate?: Date,
-  ): Promise<SecurityKPIs> {
+  async getKPIs(departmentId?: number, fromDate?: Date, toDate?: Date): Promise<SecurityKPIs> {
     return this.repo.getKPIs(departmentId, fromDate, toDate);
   }
 

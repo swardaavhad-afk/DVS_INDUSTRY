@@ -15,11 +15,7 @@ import type {
   StockAdjustmentData,
   CreateScrapRecordData,
 } from '../interfaces';
-import {
-  ConflictError,
-  NotFoundError,
-  BadRequestError,
-} from '../errors';
+import { ConflictError, NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**

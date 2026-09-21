@@ -62,7 +62,13 @@ async function seedAdminUser(adminRoleId: number): Promise<void> {
   console.log('\n🌱  Seeding admin user…');
 
   const adminEmail = process.env['SEED_ADMIN_EMAIL'] ?? 'admin@dvsindustry.com';
-  const adminPassword = process.env['SEED_ADMIN_PASSWORD'] ?? 'Admin@1234!';
+  const adminPassword = process.env['SEED_ADMIN_PASSWORD'];
+
+  if (process.env['NODE_ENV'] === 'production' && adminPassword === undefined) {
+    throw new Error('SEED_ADMIN_PASSWORD is required when seeding production.');
+  }
+
+  const password = adminPassword ?? 'DvsDevOnly!ChangeMe2026';
 
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
 
@@ -71,7 +77,7 @@ async function seedAdminUser(adminRoleId: number): Promise<void> {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash(adminPassword, 12);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   const admin = await prisma.user.create({
     data: {

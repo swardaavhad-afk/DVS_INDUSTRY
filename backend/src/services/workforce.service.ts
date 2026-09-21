@@ -1,16 +1,21 @@
 import { WorkforceRepository } from '../repositories/workforce.repository';
 import { prisma } from '../lib/prismaClient';
 import type {
-  ShiftDto, ShiftListResult, ShiftFilters,
-  CreateShiftData, UpdateShiftData,
-  AttendanceDto, AttendanceListResult, AttendanceFilters,
-  CreateAttendanceData, UpdateAttendanceData,
-  DailyAttendanceSummary, AttendanceTrendEntry,
+  ShiftDto,
+  ShiftListResult,
+  ShiftFilters,
+  CreateShiftData,
+  UpdateShiftData,
+  AttendanceDto,
+  AttendanceListResult,
+  AttendanceFilters,
+  CreateAttendanceData,
+  UpdateAttendanceData,
+  DailyAttendanceSummary,
+  AttendanceTrendEntry,
   BulkAttendanceEntry,
 } from '../interfaces';
-import {
-  ConflictError, NotFoundError, BadRequestError,
-} from '../errors';
+import { ConflictError, NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**
@@ -107,7 +112,7 @@ export class WorkforceService {
     }
 
     // Validate clock times if both are being updated
-    const newClockIn  = data.clockIn  !== undefined ? data.clockIn  : existing.clockIn;
+    const newClockIn = data.clockIn !== undefined ? data.clockIn : existing.clockIn;
     const newClockOut = data.clockOut !== undefined ? data.clockOut : existing.clockOut;
     this.validateClockTimes(newClockIn, newClockOut);
 
@@ -149,10 +154,7 @@ export class WorkforceService {
     // Check if already clocked in today
     const today = new Date(clockIn);
     today.setUTCHours(0, 0, 0, 0);
-    const existing = await this.repo.findAttendanceByEmployeeAndDate(
-      employeeId,
-      today,
-    );
+    const existing = await this.repo.findAttendanceByEmployeeAndDate(employeeId, today);
     if (existing !== null && existing.clockIn !== null) {
       throw new BadRequestError(
         `Employee already clocked in today at ${existing.clockIn.toLocaleTimeString('en-IN')}`,
@@ -185,9 +187,7 @@ export class WorkforceService {
 
     // Rule 5 — clock-out must be after clock-in
     if (clockOut <= existing.clockIn) {
-      throw new BadRequestError(
-        'Clock-out time must be after clock-in time',
-      );
+      throw new BadRequestError('Clock-out time must be after clock-in time');
     }
 
     const attendance = await this.repo.clockOut(attendanceId, clockOut, remarks);
@@ -205,22 +205,20 @@ export class WorkforceService {
     entries: BulkAttendanceEntry[],
   ): Promise<{ created: number; updated: number }> {
     // Validate all employee IDs exist
-    const ids = [...new Set(entries.map(e => e.employeeId))];
+    const ids = [...new Set(entries.map((e) => e.employeeId))];
     const existing = await prisma.employee.findMany({
       where: { id: { in: ids }, deletedAt: null },
       select: { id: true },
     });
-    const foundIds = new Set(existing.map(e => e.id));
-    const missing = ids.filter(id => !foundIds.has(id));
+    const foundIds = new Set(existing.map((e) => e.id));
+    const missing = ids.filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
-      throw new NotFoundError(
-        `Employees not found: ${missing.join(', ')}`,
-      );
+      throw new NotFoundError(`Employees not found: ${missing.join(', ')}`);
     }
 
     const result = await this.repo.bulkUpsert(
       date,
-      entries.map(e => ({
+      entries.map((e) => ({
         employeeId: e.employeeId,
         status: e.status,
         clockIn: e.clockIn ?? null,
@@ -234,17 +232,11 @@ export class WorkforceService {
 
   // ── Summary & trend ───────────────────────────────────────────────────────
 
-  async getDailySummary(
-    date?: Date,
-    departmentId?: number,
-  ): Promise<DailyAttendanceSummary> {
+  async getDailySummary(date?: Date, departmentId?: number): Promise<DailyAttendanceSummary> {
     return this.repo.getDailySummary(date ?? new Date(), departmentId);
   }
 
-  async getAttendanceTrend(
-    days = 7,
-    departmentId?: number,
-  ): Promise<AttendanceTrendEntry[]> {
+  async getAttendanceTrend(days = 7, departmentId?: number): Promise<AttendanceTrendEntry[]> {
     return this.repo.getAttendanceTrend(days, departmentId);
   }
 
@@ -266,10 +258,7 @@ export class WorkforceService {
     }
   }
 
-  private validateClockTimes(
-    clockIn?: Date | null,
-    clockOut?: Date | null,
-  ): void {
+  private validateClockTimes(clockIn?: Date | null, clockOut?: Date | null): void {
     if (clockIn && clockOut && clockOut <= clockIn) {
       throw new BadRequestError('Clock-out time must be after clock-in time');
     }

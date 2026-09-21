@@ -1,21 +1,29 @@
 import { OrdersRepository } from '../repositories/orders.repository';
 import type {
-  SupplierDto, ClientDto,
-  ClientOrderDto, PurchaseOrderDto,
-  SupplierListResult, ClientListResult,
-  ClientOrderListResult, PurchaseOrderListResult,
+  SupplierDto,
+  ClientDto,
+  ClientOrderDto,
+  PurchaseOrderDto,
+  SupplierListResult,
+  ClientListResult,
+  ClientOrderListResult,
+  PurchaseOrderListResult,
   OrdersStatistics,
-  SupplierFilters, ClientFilters,
-  ClientOrderFilters, PurchaseOrderFilters,
-  CreateSupplierData, UpdateSupplierData,
-  CreateClientData, UpdateClientData,
-  CreateClientOrderData, UpdateClientOrderData,
+  SupplierFilters,
+  ClientFilters,
+  ClientOrderFilters,
+  PurchaseOrderFilters,
+  CreateSupplierData,
+  UpdateSupplierData,
+  CreateClientData,
+  UpdateClientData,
+  CreateClientOrderData,
+  UpdateClientOrderData,
   DispatchOrderData,
-  CreatePurchaseOrderData, UpdatePurchaseOrderData,
+  CreatePurchaseOrderData,
+  UpdatePurchaseOrderData,
 } from '../interfaces';
-import {
-  ConflictError, NotFoundError, BadRequestError,
-} from '../errors';
+import { ConflictError, NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**
@@ -179,9 +187,7 @@ export class OrdersService {
 
   // ══ CLIENT ORDERS ═════════════════════════════════════════════════════════════
 
-  async createClientOrder(
-    data: CreateClientOrderData,
-  ): Promise<ClientOrderDto> {
+  async createClientOrder(data: CreateClientOrderData): Promise<ClientOrderDto> {
     // Rule 3 — client must exist and be active
     const client = await this.repo.findClientById(data.clientId);
     if (client === null) {
@@ -192,20 +198,16 @@ export class OrdersService {
     }
     const order = await this.repo.createClientOrder(data);
     logger.info('Client order created', {
-      id: order.id, orderNumber: order.orderNumber,
+      id: order.id,
+      orderNumber: order.orderNumber,
     });
     return order;
   }
 
-  async updateClientOrder(
-    id: number,
-    data: UpdateClientOrderData,
-  ): Promise<ClientOrderDto> {
+  async updateClientOrder(id: number, data: UpdateClientOrderData): Promise<ClientOrderDto> {
     const existing = await this.getClientOrderOrThrow(id);
     if (['DISPATCHED', 'DELIVERED', 'CANCELLED'].includes(existing.status)) {
-      throw new BadRequestError(
-        `Cannot edit an order with status "${existing.status}"`,
-      );
+      throw new BadRequestError(`Cannot edit an order with status "${existing.status}"`);
     }
     const updated = await this.repo.updateClientOrder(id, data);
     logger.info('Client order updated', { id });
@@ -216,9 +218,7 @@ export class OrdersService {
     return this.getClientOrderOrThrow(id);
   }
 
-  async getAllClientOrders(
-    filters: ClientOrderFilters,
-  ): Promise<ClientOrderListResult> {
+  async getAllClientOrders(filters: ClientOrderFilters): Promise<ClientOrderListResult> {
     return this.repo.findAllClientOrders(filters);
   }
 
@@ -238,21 +238,13 @@ export class OrdersService {
     return updated;
   }
 
-  async dispatchClientOrder(
-    id: number,
-    data: DispatchOrderData,
-  ): Promise<ClientOrderDto> {
+  async dispatchClientOrder(id: number, data: DispatchOrderData): Promise<ClientOrderDto> {
     const existing = await this.getClientOrderOrThrow(id);
-    this.assertTransition(existing.status, 'DISPATCHED', [
-      'APPROVED',
-      'IN_PRODUCTION',
-    ]);
+    this.assertTransition(existing.status, 'DISPATCHED', ['APPROVED', 'IN_PRODUCTION']);
 
     // Auto-generate reference numbers if not supplied
-    const challan =
-      data.challanNumber ?? `DC-${Date.now().toString().slice(-6)}`;
-    const invoice =
-      data.invoiceNumber ?? `INV-DVS-${Date.now().toString().slice(-5)}`;
+    const challan = data.challanNumber ?? `DC-${Date.now().toString().slice(-6)}`;
+    const invoice = data.invoiceNumber ?? `INV-DVS-${Date.now().toString().slice(-5)}`;
 
     const updated = await this.repo.updateClientOrderStatus(id, 'DISPATCHED', {
       dispatchDate: new Date(),
@@ -261,7 +253,9 @@ export class OrdersService {
       invoiceNumber: invoice,
     });
     logger.info('Client order dispatched', {
-      id, challan, invoice,
+      id,
+      challan,
+      invoice,
     });
     return updated;
   }
@@ -291,9 +285,7 @@ export class OrdersService {
 
   // ══ PURCHASE ORDERS ═══════════════════════════════════════════════════════════
 
-  async createPurchaseOrder(
-    data: CreatePurchaseOrderData,
-  ): Promise<PurchaseOrderDto> {
+  async createPurchaseOrder(data: CreatePurchaseOrderData): Promise<PurchaseOrderDto> {
     // Rule 6 — supplier must exist and be active
     const supplier = await this.repo.findSupplierById(data.supplierId);
     if (supplier === null) {
@@ -304,20 +296,16 @@ export class OrdersService {
     }
     const po = await this.repo.createPurchaseOrder(data);
     logger.info('Purchase order created', {
-      id: po.id, poNumber: po.poNumber,
+      id: po.id,
+      poNumber: po.poNumber,
     });
     return po;
   }
 
-  async updatePurchaseOrder(
-    id: number,
-    data: UpdatePurchaseOrderData,
-  ): Promise<PurchaseOrderDto> {
+  async updatePurchaseOrder(id: number, data: UpdatePurchaseOrderData): Promise<PurchaseOrderDto> {
     const existing = await this.getPurchaseOrderOrThrow(id);
     if (['DELIVERED', 'CANCELLED'].includes(existing.status)) {
-      throw new BadRequestError(
-        `Cannot edit a PO with status "${existing.status}"`,
-      );
+      throw new BadRequestError(`Cannot edit a PO with status "${existing.status}"`);
     }
     const updated = await this.repo.updatePurchaseOrder(id, data);
     logger.info('Purchase order updated', { id });
@@ -328,9 +316,7 @@ export class OrdersService {
     return this.getPurchaseOrderOrThrow(id);
   }
 
-  async getAllPurchaseOrders(
-    filters: PurchaseOrderFilters,
-  ): Promise<PurchaseOrderListResult> {
+  async getAllPurchaseOrders(filters: PurchaseOrderFilters): Promise<PurchaseOrderListResult> {
     return this.repo.findAllPurchaseOrders(filters);
   }
 
@@ -352,10 +338,7 @@ export class OrdersService {
 
   async deliverPurchaseOrder(id: number): Promise<PurchaseOrderDto> {
     const existing = await this.getPurchaseOrderOrThrow(id);
-    this.assertPOTransition(existing.status, 'DELIVERED', [
-      'CONFIRMED',
-      'IN_TRANSIT',
-    ]);
+    this.assertPOTransition(existing.status, 'DELIVERED', ['CONFIRMED', 'IN_TRANSIT']);
     const updated = await this.repo.updatePurchaseOrderStatus(id, 'DELIVERED', {
       actualDelivery: new Date(),
     });
@@ -408,11 +391,7 @@ export class OrdersService {
     return p;
   }
 
-  private assertTransition(
-    current: string,
-    target: string,
-    allowed: string[],
-  ): void {
+  private assertTransition(current: string, target: string, allowed: string[]): void {
     if (!allowed.includes(current)) {
       throw new BadRequestError(
         `Cannot transition to "${target}" from "${current}". ` +
@@ -421,11 +400,7 @@ export class OrdersService {
     }
   }
 
-  private assertPOTransition(
-    current: string,
-    target: string,
-    allowed: string[],
-  ): void {
+  private assertPOTransition(current: string, target: string, allowed: string[]): void {
     this.assertTransition(current, target, allowed);
   }
 }

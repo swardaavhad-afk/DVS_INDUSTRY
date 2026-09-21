@@ -6,11 +6,13 @@ const employeeCodeField = z
   .string()
   .min(1, 'Employee code is required')
   .max(20, 'Employee code must be at most 20 characters')
-  .regex(/^[A-Z0-9_-]+$/, 'Employee code must contain only uppercase letters, digits, hyphens, or underscores')
+  .regex(
+    /^[A-Z0-9_-]+$/,
+    'Employee code must contain only uppercase letters, digits, hyphens, or underscores',
+  )
   .trim();
 
-const nameField = (label: string) =>
-  z.string().min(1, `${label} is required`).max(100).trim();
+const nameField = (label: string) => z.string().min(1, `${label} is required`).max(100).trim();
 
 const emailField = z
   .string()
@@ -32,8 +34,7 @@ const salaryField = z
   .optional()
   .nullable();
 
-const optionalNullableString = (max = 255) =>
-  z.string().max(max).trim().optional().nullable();
+const optionalNullableString = (max = 255) => z.string().max(max).trim().optional().nullable();
 
 const optionalPositiveInt = z.coerce.number().int().positive().optional().nullable();
 
@@ -112,10 +113,9 @@ export const updateEmployeeSchema = z
     emergencyPhone: phoneField,
     profileImage: optionalNullableString(500),
   })
-  .refine(
-    (d) => Object.values(d).some((v) => v !== undefined),
-    { message: 'At least one field must be provided for update' },
-  );
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: 'At least one field must be provided for update',
+  });
 
 // ── Param schemas ─────────────────────────────────────────────────────────────
 
@@ -126,7 +126,11 @@ export const employeeIdParamSchema = z.object({
 // ── Assignment body schemas ───────────────────────────────────────────────────
 
 export const assignDepartmentSchema = z.object({
-  departmentId: z.coerce.number().int().positive('departmentId must be a positive integer').nullable(),
+  departmentId: z.coerce
+    .number()
+    .int()
+    .positive('departmentId must be a positive integer')
+    .nullable(),
 });
 
 export const assignManagerSchema = z.object({

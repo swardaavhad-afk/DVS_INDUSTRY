@@ -73,10 +73,7 @@ export async function refreshTokens(req: Request, res: Response): Promise<void> 
 
 // ── Change Password ───────────────────────────────────────────────────────────
 
-export async function changePassword(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function changePassword(req: AuthenticatedRequest, res: Response): Promise<void> {
   const userId = req.user!.id;
   const body = req.body as ChangePasswordInput;
 
@@ -98,12 +95,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   await authService.forgotPassword(email);
 
   // Never reveal whether the email exists
-  sendSuccess(
-    res,
-    null,
-    200,
-    'If an account with that email exists, a reset link has been sent.',
-  );
+  sendSuccess(res, null, 200, 'If an account with that email exists, a reset link has been sent.');
 }
 
 // ── Reset Password ────────────────────────────────────────────────────────────
@@ -116,20 +108,14 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
 
 // ── Get Me ────────────────────────────────────────────────────────────────────
 
-export async function getMe(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function getMe(req: AuthenticatedRequest, res: Response): Promise<void> {
   const user = await authService.getMe(req.user!.id);
   sendSuccess(res, user);
 }
 
 // ── Update Profile ────────────────────────────────────────────────────────────
 
-export async function updateProfile(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function updateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as UpdateProfileInput;
   const updateData: { fullName?: string; phone: string | null } = {
     phone: body.phone ?? null,
@@ -143,10 +129,7 @@ export async function updateProfile(
 
 // ── Deactivate User ───────────────────────────────────────────────────────────
 
-export async function deactivateUser(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function deactivateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
   const rawId = req.params['id'];
   const targetUserId = parseInt(typeof rawId === 'string' ? rawId : '0', 10);
   const user = await authService.deactivateUser(req.user!.id, targetUserId);

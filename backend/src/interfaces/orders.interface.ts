@@ -2,19 +2,10 @@
 // Pure domain objects — zero Prisma imports.
 
 export type ClientOrderStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'IN_PRODUCTION'
-  | 'DISPATCHED'
-  | 'DELIVERED'
-  | 'CANCELLED';
+  'PENDING' | 'APPROVED' | 'IN_PRODUCTION' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
 
 export type PurchaseOrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'IN_TRANSIT'
-  | 'DELIVERED'
-  | 'CANCELLED';
+  'PENDING' | 'CONFIRMED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
 
@@ -137,10 +128,22 @@ export interface OrdersStatistics {
 
 // ── List results ──────────────────────────────────────────────────────────────
 
-export interface SupplierListResult   { data: SupplierDto[];      total: number }
-export interface ClientListResult     { data: ClientDto[];        total: number }
-export interface ClientOrderListResult { data: ClientOrderDto[];  total: number }
-export interface PurchaseOrderListResult { data: PurchaseOrderDto[]; total: number }
+export interface SupplierListResult {
+  data: SupplierDto[];
+  total: number;
+}
+export interface ClientListResult {
+  data: ClientDto[];
+  total: number;
+}
+export interface ClientOrderListResult {
+  data: ClientOrderDto[];
+  total: number;
+}
+export interface PurchaseOrderListResult {
+  data: PurchaseOrderDto[];
+  total: number;
+}
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 

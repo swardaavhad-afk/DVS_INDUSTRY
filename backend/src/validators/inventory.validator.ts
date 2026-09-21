@@ -8,8 +8,7 @@ const decimalString = (label: string) =>
     .regex(/^\d+(\.\d{1,3})?$/, `${label} must be a valid decimal (e.g. 100.500)`)
     .refine((v) => parseFloat(v) >= 0, `${label} must be >= 0`);
 
-const optionalDecimalString = (label: string) =>
-  decimalString(label).optional().nullable();
+const optionalDecimalString = (label: string) => decimalString(label).optional().nullable();
 
 const positiveDecimalString = (label: string) =>
   z
@@ -49,10 +48,9 @@ export const updateMaterialSchema = z
     costPerUnit: optionalDecimalString('Cost per unit'),
     currency: z.string().length(3).toUpperCase().optional(),
   })
-  .refine(
-    (d) => Object.values(d).some((v) => v !== undefined),
-    { message: 'At least one field must be provided for update' },
-  );
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: 'At least one field must be provided for update',
+  });
 
 export const materialIdParamSchema = z.object({
   id: z.coerce.number().int().positive('Material id must be a positive integer'),

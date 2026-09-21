@@ -6,11 +6,11 @@ import { BadRequestError } from '../errors';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const UPLOAD_ROOT   = path.resolve(process.cwd(), 'uploads');
-const PROFILES_DIR  = path.join(UPLOAD_ROOT, 'profiles');
-const MAX_SIZE_BYTES = 5 * 1024 * 1024;   // 5 MB
-const ALLOWED_MIME   = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const ALLOWED_EXT    = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const UPLOAD_ROOT = path.resolve(process.cwd(), 'uploads');
+const PROFILES_DIR = path.join(UPLOAD_ROOT, 'profiles');
+const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 
 // Ensure the directory exists at startup
 if (!fs.existsSync(PROFILES_DIR)) {
@@ -21,8 +21,8 @@ if (!fs.existsSync(PROFILES_DIR)) {
 
 const profileStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, PROFILES_DIR),
-  filename:    (_req, file, cb) => {
-    const ext      = path.extname(file.originalname).toLowerCase();
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     cb(null, safeName);
   },
@@ -30,11 +30,7 @@ const profileStorage = multer.diskStorage({
 
 // ── File filter ────────────────────────────────────────────────────────────────
 
-function profileFileFilter(
-  _req: Request,
-  file: Express.Multer.File,
-  cb: FileFilterCallback,
-): void {
+function profileFileFilter(_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void {
   const ext = path.extname(file.originalname).toLowerCase();
   if (!ALLOWED_MIME.has(file.mimetype) || !ALLOWED_EXT.has(ext)) {
     cb(new BadRequestError('Only JPEG, PNG and WebP images are allowed'));
@@ -47,8 +43,8 @@ function profileFileFilter(
 
 /** Single-file profile image upload — field name: "image" */
 export const uploadProfileImage = multer({
-  storage:    profileStorage,
-  limits:     { fileSize: MAX_SIZE_BYTES },
+  storage: profileStorage,
+  limits: { fileSize: MAX_SIZE_BYTES },
   fileFilter: profileFileFilter,
 }).single('image');
 
@@ -68,9 +64,7 @@ export function deleteUploadedFile(storedPath: string): void {
   try {
     // storedPath is either a full URL "/uploads/profiles/xxx.jpg"
     // or an absolute FS path — normalise to FS path
-    const fsPath = storedPath.startsWith('/')
-      ? path.join(process.cwd(), storedPath)
-      : storedPath;
+    const fsPath = storedPath.startsWith('/') ? path.join(process.cwd(), storedPath) : storedPath;
     if (fs.existsSync(fsPath)) fs.unlinkSync(fsPath);
   } catch {
     // swallow — non-critical

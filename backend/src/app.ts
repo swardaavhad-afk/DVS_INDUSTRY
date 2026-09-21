@@ -40,7 +40,7 @@ app.use(
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500,                  // requests per window per IP
+    max: 500, // requests per window per IP
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -64,7 +64,7 @@ app.use(
   '/uploads',
   express.static(path.resolve(process.cwd(), 'uploads'), {
     maxAge: '7d',
-    etag:   true,
+    etag: true,
   }),
 );
 

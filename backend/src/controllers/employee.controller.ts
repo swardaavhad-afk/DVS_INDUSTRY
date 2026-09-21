@@ -22,10 +22,7 @@ function parseId(raw: string | string[] | undefined): number {
 
 // ── Create ─────────────────────────────────────────────────────────────────
 
-export async function createEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function createEmployee(req: Request, res: Response): Promise<void> {
   const body = req.body as CreateEmployeeInput;
 
   const employee = await employeeService.create({
@@ -59,10 +56,7 @@ export async function createEmployee(
 
 // ── Get All ────────────────────────────────────────────────────────────────
 
-export async function getAllEmployees(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getAllEmployees(req: Request, res: Response): Promise<void> {
   const query = req.query as unknown as EmployeeQueryInput;
 
   const filters: EmployeeFilters = {
@@ -96,10 +90,7 @@ export async function getAllEmployees(
 
 // ── Get by ID ──────────────────────────────────────────────────────────────
 
-export async function getEmployeeById(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getEmployeeById(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const employee = await employeeService.getById(id);
   sendSuccess(res, employee);
@@ -107,10 +98,7 @@ export async function getEmployeeById(
 
 // ── Update ─────────────────────────────────────────────────────────────────
 
-export async function updateEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function updateEmployee(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const body = req.body as UpdateEmployeeInput;
 
@@ -140,10 +128,7 @@ export async function updateEmployee(
 
 // ── Soft Delete ────────────────────────────────────────────────────────────
 
-export async function deleteEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function deleteEmployee(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   await employeeService.softDelete(id);
   sendNoContent(res);
@@ -151,10 +136,7 @@ export async function deleteEmployee(
 
 // ── Restore ────────────────────────────────────────────────────────────────
 
-export async function restoreEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function restoreEmployee(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const employee = await employeeService.restore(id);
   sendSuccess(res, employee, 200, 'Employee restored successfully');
@@ -162,10 +144,7 @@ export async function restoreEmployee(
 
 // ── Activate ───────────────────────────────────────────────────────────────
 
-export async function activateEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function activateEmployee(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const employee = await employeeService.activate(id);
   sendSuccess(res, employee, 200, 'Employee activated successfully');
@@ -173,10 +152,7 @@ export async function activateEmployee(
 
 // ── Deactivate ─────────────────────────────────────────────────────────────
 
-export async function deactivateEmployee(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function deactivateEmployee(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const employee = await employeeService.deactivate(id);
   sendSuccess(res, employee, 200, 'Employee deactivated successfully');
@@ -184,10 +160,7 @@ export async function deactivateEmployee(
 
 // ── Assign Department ──────────────────────────────────────────────────────
 
-export async function assignDepartment(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function assignDepartment(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const { departmentId } = req.body as AssignDepartmentInput;
   const employee = await employeeService.assignDepartment(id, departmentId);
@@ -196,10 +169,7 @@ export async function assignDepartment(
 
 // ── Assign Manager ─────────────────────────────────────────────────────────
 
-export async function assignManager(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function assignManager(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const { managerId } = req.body as AssignManagerInput;
   const employee = await employeeService.assignManager(id, managerId);
@@ -208,10 +178,7 @@ export async function assignManager(
 
 // ── Assign Shift ───────────────────────────────────────────────────────────
 
-export async function assignShift(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function assignShift(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const { shiftId } = req.body as AssignShiftInput;
   const employee = await employeeService.assignShift(id, shiftId);
@@ -220,20 +187,14 @@ export async function assignShift(
 
 // ── Statistics ─────────────────────────────────────────────────────────────
 
-export async function getStatistics(
-  _req: Request,
-  res: Response,
-): Promise<void> {
+export async function getStatistics(_req: Request, res: Response): Promise<void> {
   const stats = await employeeService.statistics();
   sendSuccess(res, stats);
 }
 
 // ── Upload Profile Image ───────────────────────────────────────────────────
 
-export async function uploadProfileImage(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function uploadProfileImage(req: Request, res: Response): Promise<void> {
   const id = parseInt(String(req.params['id'] ?? '0'), 10);
 
   if (!req.file) {

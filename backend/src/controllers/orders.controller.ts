@@ -3,18 +3,29 @@ import type { AuthenticatedRequest } from '../types';
 import { OrdersService } from '../services/orders.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/response';
 import type {
-  CreateSupplierInput, UpdateSupplierInput, SupplierQueryInput,
-  CreateClientInput, UpdateClientInput, ClientQueryInput,
-  CreateClientOrderInput, UpdateClientOrderInput,
-  ClientOrderQueryInput, DispatchOrderInput,
-  CreatePurchaseOrderInput, UpdatePurchaseOrderInput,
+  CreateSupplierInput,
+  UpdateSupplierInput,
+  SupplierQueryInput,
+  CreateClientInput,
+  UpdateClientInput,
+  ClientQueryInput,
+  CreateClientOrderInput,
+  UpdateClientOrderInput,
+  ClientOrderQueryInput,
+  DispatchOrderInput,
+  CreatePurchaseOrderInput,
+  UpdatePurchaseOrderInput,
   PurchaseOrderQueryInput,
 } from '../validators/orders.validator';
 import type {
-  SupplierFilters, ClientFilters,
-  ClientOrderFilters, PurchaseOrderFilters,
-  UpdateSupplierData, UpdateClientData,
-  UpdateClientOrderData, UpdatePurchaseOrderData,
+  SupplierFilters,
+  ClientFilters,
+  ClientOrderFilters,
+  PurchaseOrderFilters,
+  UpdateSupplierData,
+  UpdateClientData,
+  UpdateClientOrderData,
+  UpdatePurchaseOrderData,
 } from '../interfaces';
 
 const svc = new OrdersService();
@@ -35,11 +46,15 @@ export async function getStatistics(_req: Request, res: Response): Promise<void>
 export async function createSupplier(req: Request, res: Response): Promise<void> {
   const body = req.body as CreateSupplierInput;
   const supplier = await svc.createSupplier({
-    name: body.name, code: body.code,
+    name: body.name,
+    code: body.code,
     contactName: body.contactName ?? null,
-    email: body.email ?? null, phone: body.phone ?? null,
-    address: body.address ?? null, city: body.city ?? null,
-    state: body.state ?? null, country: body.country,
+    email: body.email ?? null,
+    phone: body.phone ?? null,
+    address: body.address ?? null,
+    city: body.city ?? null,
+    state: body.state ?? null,
+    country: body.country,
     gstin: body.gstin ?? null,
     rating: body.rating ?? null,
     leadTimeDays: body.leadTimeDays ?? null,
@@ -52,8 +67,11 @@ export async function createSupplier(req: Request, res: Response): Promise<void>
 export async function getAllSuppliers(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as SupplierQueryInput;
   const filters: SupplierFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder, status: q.status,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
+    status: q.status,
   };
   if (q.search !== undefined) filters.search = q.search;
 
@@ -61,7 +79,10 @@ export async function getAllSuppliers(req: Request, res: Response): Promise<void
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 20;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -86,7 +107,12 @@ export async function updateSupplier(req: Request, res: Response): Promise<void>
   if (body.reliability !== undefined) data.reliability = body.reliability;
   if (body.materials !== undefined) data.materials = body.materials;
 
-  sendSuccess(res, await svc.updateSupplier(parseId(req.params['id']), data), 200, 'Supplier updated');
+  sendSuccess(
+    res,
+    await svc.updateSupplier(parseId(req.params['id']), data),
+    200,
+    'Supplier updated',
+  );
 }
 
 export async function deleteSupplier(req: Request, res: Response): Promise<void> {
@@ -103,11 +129,15 @@ export async function restoreSupplier(req: Request, res: Response): Promise<void
 export async function createClient(req: Request, res: Response): Promise<void> {
   const body = req.body as CreateClientInput;
   const client = await svc.createClient({
-    name: body.name, code: body.code,
+    name: body.name,
+    code: body.code,
     contactName: body.contactName ?? null,
-    email: body.email ?? null, phone: body.phone ?? null,
-    address: body.address ?? null, city: body.city ?? null,
-    state: body.state ?? null, country: body.country,
+    email: body.email ?? null,
+    phone: body.phone ?? null,
+    address: body.address ?? null,
+    city: body.city ?? null,
+    state: body.state ?? null,
+    country: body.country,
     gstin: body.gstin ?? null,
   });
   sendCreated(res, client, 'Client created successfully');
@@ -116,8 +146,11 @@ export async function createClient(req: Request, res: Response): Promise<void> {
 export async function getAllClients(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as ClientQueryInput;
   const filters: ClientFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder, status: q.status,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
+    status: q.status,
   };
   if (q.search !== undefined) filters.search = q.search;
 
@@ -125,7 +158,10 @@ export async function getAllClients(req: Request, res: Response): Promise<void> 
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 20;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -160,9 +196,7 @@ export async function restoreClient(req: Request, res: Response): Promise<void> 
 
 // ══ CLIENT ORDERS ══════════════════════════════════════════════════════════════
 
-export async function createClientOrder(
-  req: AuthenticatedRequest, res: Response,
-): Promise<void> {
+export async function createClientOrder(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreateClientOrderInput;
   const order = await svc.createClientOrder({
     clientId: body.clientId,
@@ -181,20 +215,25 @@ export async function createClientOrder(
 export async function getAllClientOrders(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as ClientOrderQueryInput;
   const filters: ClientOrderFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
     status: q.status,
   };
-  if (q.clientId !== undefined)  filters.clientId = q.clientId;
-  if (q.search !== undefined)    filters.search   = q.search;
-  if (q.fromDate !== undefined)  filters.fromDate = q.fromDate;
-  if (q.toDate !== undefined)    filters.toDate   = q.toDate;
+  if (q.clientId !== undefined) filters.clientId = q.clientId;
+  if (q.search !== undefined) filters.search = q.search;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
 
   const { data, total } = await svc.getAllClientOrders(filters);
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 20;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -205,14 +244,19 @@ export async function getClientOrderById(req: Request, res: Response): Promise<v
 export async function updateClientOrder(req: Request, res: Response): Promise<void> {
   const body = req.body as UpdateClientOrderInput;
   const data: UpdateClientOrderData = {};
-  if (body.product !== undefined)      data.product      = body.product;
-  if (body.quantity !== undefined)     data.quantity     = body.quantity;
-  if (body.unit !== undefined)         data.unit         = body.unit;
-  if (body.value !== undefined)        data.value        = body.value;
+  if (body.product !== undefined) data.product = body.product;
+  if (body.quantity !== undefined) data.quantity = body.quantity;
+  if (body.unit !== undefined) data.unit = body.unit;
+  if (body.value !== undefined) data.value = body.value;
   if (body.requiredDate !== undefined) data.requiredDate = body.requiredDate;
-  if (body.notes !== undefined)        data.notes        = body.notes;
+  if (body.notes !== undefined) data.notes = body.notes;
 
-  sendSuccess(res, await svc.updateClientOrder(parseId(req.params['id']), data), 200, 'Order updated');
+  sendSuccess(
+    res,
+    await svc.updateClientOrder(parseId(req.params['id']), data),
+    200,
+    'Order updated',
+  );
 }
 
 export async function approveClientOrder(req: Request, res: Response): Promise<void> {
@@ -220,7 +264,12 @@ export async function approveClientOrder(req: Request, res: Response): Promise<v
 }
 
 export async function markClientOrderInProduction(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.markInProduction(parseId(req.params['id'])), 200, 'Order marked in-production');
+  sendSuccess(
+    res,
+    await svc.markInProduction(parseId(req.params['id'])),
+    200,
+    'Order marked in-production',
+  );
 }
 
 export async function dispatchClientOrder(req: Request, res: Response): Promise<void> {
@@ -234,7 +283,12 @@ export async function dispatchClientOrder(req: Request, res: Response): Promise<
 }
 
 export async function deliverClientOrder(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.deliverClientOrder(parseId(req.params['id'])), 200, 'Order marked as delivered');
+  sendSuccess(
+    res,
+    await svc.deliverClientOrder(parseId(req.params['id'])),
+    200,
+    'Order marked as delivered',
+  );
 }
 
 export async function cancelClientOrder(req: Request, res: Response): Promise<void> {
@@ -243,9 +297,7 @@ export async function cancelClientOrder(req: Request, res: Response): Promise<vo
 
 // ══ PURCHASE ORDERS ═══════════════════════════════════════════════════════════
 
-export async function createPurchaseOrder(
-  req: AuthenticatedRequest, res: Response,
-): Promise<void> {
+export async function createPurchaseOrder(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreatePurchaseOrderInput;
   const po = await svc.createPurchaseOrder({
     supplierId: body.supplierId,
@@ -264,20 +316,25 @@ export async function createPurchaseOrder(
 export async function getAllPurchaseOrders(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as PurchaseOrderQueryInput;
   const filters: PurchaseOrderFilters = {
-    page: q.page, pageSize: q.pageSize,
-    sortBy: q.sortBy, sortOrder: q.sortOrder,
+    page: q.page,
+    pageSize: q.pageSize,
+    sortBy: q.sortBy,
+    sortOrder: q.sortOrder,
     status: q.status,
   };
   if (q.supplierId !== undefined) filters.supplierId = q.supplierId;
-  if (q.search !== undefined)     filters.search     = q.search;
-  if (q.fromDate !== undefined)   filters.fromDate   = q.fromDate;
-  if (q.toDate !== undefined)     filters.toDate     = q.toDate;
+  if (q.search !== undefined) filters.search = q.search;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
 
   const { data, total } = await svc.getAllPurchaseOrders(filters);
   const page = q.page ?? 1;
   const pageSize = q.pageSize ?? 20;
   sendSuccess(res, data, 200, undefined, {
-    page, pageSize, total, totalPages: Math.ceil(total / pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
   });
 }
 
@@ -288,28 +345,53 @@ export async function getPurchaseOrderById(req: Request, res: Response): Promise
 export async function updatePurchaseOrder(req: Request, res: Response): Promise<void> {
   const body = req.body as UpdatePurchaseOrderInput;
   const data: UpdatePurchaseOrderData = {};
-  if (body.material !== undefined)         data.material         = body.material;
-  if (body.quantity !== undefined)         data.quantity         = body.quantity;
-  if (body.unit !== undefined)             data.unit             = body.unit;
-  if (body.totalCost !== undefined)        data.totalCost        = body.totalCost;
+  if (body.material !== undefined) data.material = body.material;
+  if (body.quantity !== undefined) data.quantity = body.quantity;
+  if (body.unit !== undefined) data.unit = body.unit;
+  if (body.totalCost !== undefined) data.totalCost = body.totalCost;
   if (body.expectedDelivery !== undefined) data.expectedDelivery = body.expectedDelivery;
-  if (body.notes !== undefined)            data.notes            = body.notes;
+  if (body.notes !== undefined) data.notes = body.notes;
 
-  sendSuccess(res, await svc.updatePurchaseOrder(parseId(req.params['id']), data), 200, 'Purchase order updated');
+  sendSuccess(
+    res,
+    await svc.updatePurchaseOrder(parseId(req.params['id']), data),
+    200,
+    'Purchase order updated',
+  );
 }
 
 export async function confirmPurchaseOrder(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.confirmPurchaseOrder(parseId(req.params['id'])), 200, 'Purchase order confirmed');
+  sendSuccess(
+    res,
+    await svc.confirmPurchaseOrder(parseId(req.params['id'])),
+    200,
+    'Purchase order confirmed',
+  );
 }
 
 export async function markPOInTransit(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.markInTransit(parseId(req.params['id'])), 200, 'Purchase order marked in-transit');
+  sendSuccess(
+    res,
+    await svc.markInTransit(parseId(req.params['id'])),
+    200,
+    'Purchase order marked in-transit',
+  );
 }
 
 export async function deliverPurchaseOrder(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.deliverPurchaseOrder(parseId(req.params['id'])), 200, 'Purchase order delivered');
+  sendSuccess(
+    res,
+    await svc.deliverPurchaseOrder(parseId(req.params['id'])),
+    200,
+    'Purchase order delivered',
+  );
 }
 
 export async function cancelPurchaseOrder(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.cancelPurchaseOrder(parseId(req.params['id'])), 200, 'Purchase order cancelled');
+  sendSuccess(
+    res,
+    await svc.cancelPurchaseOrder(parseId(req.params['id'])),
+    200,
+    'Purchase order cancelled',
+  );
 }

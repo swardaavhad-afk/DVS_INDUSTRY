@@ -17,7 +17,7 @@ export interface AuthUser {
   id:       number;
   fullName: string;
   email:    string;
-  role:     string;   // "ADMIN" | "MANAGER" | "HR" | "STORE" | "PRODUCTION" | "SALES"
+  role:     string | { name: string }; // Backend returns the role object.
   isActive: boolean;
 }
 
@@ -42,6 +42,10 @@ const BACKEND_TO_FRONTEND: Record<string, FrontendRole> = {
 
 export function getFrontendRole(backendRole: string): FrontendRole {
   return BACKEND_TO_FRONTEND[backendRole.toUpperCase()] ?? 'admin';
+}
+
+function getBackendRoleName(role: AuthUser['role']): string {
+  return typeof role === 'string' ? role : role.name;
 }
 
 // ── Persistence keys ──────────────────────────────────────────────────────────
@@ -82,7 +86,7 @@ export async function login(
   const { accessToken, user } = unwrap(res);
   setAccessToken(accessToken);
   persistUser(user);
-  return { user, frontendRole: getFrontendRole(user.role) };
+  return { user, frontendRole: getFrontendRole(getBackendRoleName(user.role)) };
 }
 
 /**

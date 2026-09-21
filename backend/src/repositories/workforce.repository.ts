@@ -1,30 +1,53 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 import type {
-  ShiftDto, ShiftListResult, ShiftFilters,
-  CreateShiftData, UpdateShiftData,
-  AttendanceDto, AttendanceListResult, AttendanceFilters,
-  CreateAttendanceData, UpdateAttendanceData,
-  DailyAttendanceSummary, AttendanceTrendEntry,
+  ShiftDto,
+  ShiftListResult,
+  ShiftFilters,
+  CreateShiftData,
+  UpdateShiftData,
+  AttendanceDto,
+  AttendanceListResult,
+  AttendanceFilters,
+  CreateAttendanceData,
+  UpdateAttendanceData,
+  DailyAttendanceSummary,
+  AttendanceTrendEntry,
   AttendanceStatus,
 } from '../interfaces';
 
 // ── Select shapes ─────────────────────────────────────────────────────────────
 
 const shiftSelect = {
-  id: true, name: true, startTime: true, endTime: true,
-  isNightShift: true, description: true, createdAt: true, updatedAt: true,
+  id: true,
+  name: true,
+  startTime: true,
+  endTime: true,
+  isNightShift: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
   _count: { select: { employees: true } },
 } as const;
 
 const attendanceSelect = {
-  id: true, employeeId: true, date: true,
-  clockIn: true, clockOut: true, workingHours: true,
-  status: true, remarks: true, createdAt: true, updatedAt: true,
+  id: true,
+  employeeId: true,
+  date: true,
+  clockIn: true,
+  clockOut: true,
+  workingHours: true,
+  status: true,
+  remarks: true,
+  createdAt: true,
+  updatedAt: true,
   employee: {
     select: {
-      id: true, employeeCode: true, firstName: true,
-      lastName: true, designation: true,
+      id: true,
+      employeeCode: true,
+      firstName: true,
+      lastName: true,
+      designation: true,
       department: { select: { id: true, name: true } },
     },
   },
@@ -71,7 +94,6 @@ function calcWorkingHours(clockIn: Date, clockOut: Date): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class WorkforceRepository {
-
   // ══ SHIFTS ════════════════════════════════════════════════════════════════
 
   async createShift(data: CreateShiftData): Promise<ShiftDto> {
@@ -90,9 +112,9 @@ export class WorkforceRepository {
 
   async updateShift(id: number, data: UpdateShiftData): Promise<ShiftDto> {
     const up: Prisma.ShiftUpdateInput = {};
-    if (data.name !== undefined)        up.name        = data.name;
-    if (data.startTime !== undefined)   up.startTime   = data.startTime;
-    if (data.endTime !== undefined)     up.endTime     = data.endTime;
+    if (data.name !== undefined) up.name = data.name;
+    if (data.startTime !== undefined) up.startTime = data.startTime;
+    if (data.endTime !== undefined) up.endTime = data.endTime;
     if (data.isNightShift !== undefined) up.isNightShift = data.isNightShift;
     if (data.description !== undefined) up.description = data.description;
     const raw = await prisma.shift.update({ where: { id }, data: up, select: shiftSelect });
@@ -127,7 +149,13 @@ export class WorkforceRepository {
     }
     const orderBy: Prisma.ShiftOrderByWithRelationInput = { [sortBy]: sortOrder };
     const [data, total] = await prisma.$transaction([
-      prisma.shift.findMany({ where, select: shiftSelect, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.shift.findMany({
+        where,
+        select: shiftSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.shift.count({ where }),
     ]);
     return { data: data.map(toShiftDto), total };
@@ -195,7 +223,7 @@ export class WorkforceRepository {
     const existing = await prisma.attendance.findUnique({ where: { id } });
     if (!existing) throw new Error('Attendance record not found');
 
-    const newClockIn  = data.clockIn  !== undefined ? data.clockIn  : existing.clockIn;
+    const newClockIn = data.clockIn !== undefined ? data.clockIn : existing.clockIn;
     const newClockOut = data.clockOut !== undefined ? data.clockOut : existing.clockOut;
     let workingHours: number | null = existing.workingHours;
     if (newClockIn && newClockOut) {
@@ -203,12 +231,16 @@ export class WorkforceRepository {
     }
 
     const up: Prisma.AttendanceUpdateInput = { workingHours };
-    if (data.status !== undefined)   up.status   = data.status;
-    if (data.clockIn !== undefined)  up.clockIn  = data.clockIn;
+    if (data.status !== undefined) up.status = data.status;
+    if (data.clockIn !== undefined) up.clockIn = data.clockIn;
     if (data.clockOut !== undefined) up.clockOut = data.clockOut;
-    if (data.remarks !== undefined)  up.remarks  = data.remarks;
+    if (data.remarks !== undefined) up.remarks = data.remarks;
 
-    const raw = await prisma.attendance.update({ where: { id }, data: up, select: attendanceSelect });
+    const raw = await prisma.attendance.update({
+      where: { id },
+      data: up,
+      select: attendanceSelect,
+    });
     return toAttendanceDto(raw);
   }
 
@@ -230,9 +262,15 @@ export class WorkforceRepository {
 
   async findAllAttendance(f: AttendanceFilters): Promise<AttendanceListResult> {
     const {
-      employeeId, departmentId, status = 'all',
-      date, fromDate, toDate,
-      sortOrder = 'desc', page = 1, pageSize = 20,
+      employeeId,
+      departmentId,
+      status = 'all',
+      date,
+      fromDate,
+      toDate,
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
     } = f;
 
     const where: Prisma.AttendanceWhereInput = {};
@@ -246,7 +284,7 @@ export class WorkforceRepository {
     } else if (fromDate !== undefined || toDate !== undefined) {
       where.date = {};
       if (fromDate) where.date.gte = this.normaliseDate(fromDate);
-      if (toDate)   where.date.lte = this.normaliseDate(toDate);
+      if (toDate) where.date.lte = this.normaliseDate(toDate);
     }
 
     if (departmentId !== undefined) {
@@ -283,9 +321,6 @@ export class WorkforceRepository {
     }>,
   ): Promise<{ created: number; updated: number }> {
     const normDate = this.normaliseDate(date);
-    let created = 0;
-    let updated = 0;
-
     // Use a transaction for atomicity
     await prisma.$transaction(
       entries.map((e) => {
@@ -295,14 +330,19 @@ export class WorkforceRepository {
         return prisma.attendance.upsert({
           where: { employeeId_date: { employeeId: e.employeeId, date: normDate } },
           create: {
-            employeeId: e.employeeId, date: normDate,
-            status: e.status, clockIn: e.clockIn ?? null,
-            clockOut: e.clockOut ?? null, workingHours: wh,
+            employeeId: e.employeeId,
+            date: normDate,
+            status: e.status,
+            clockIn: e.clockIn ?? null,
+            clockOut: e.clockOut ?? null,
+            workingHours: wh,
             remarks: e.remarks ?? null,
           },
           update: {
-            status: e.status, clockIn: e.clockIn ?? null,
-            clockOut: e.clockOut ?? null, workingHours: wh,
+            status: e.status,
+            clockIn: e.clockIn ?? null,
+            clockOut: e.clockOut ?? null,
+            workingHours: wh,
             remarks: e.remarks ?? null,
           },
           select: { id: true },
@@ -311,19 +351,22 @@ export class WorkforceRepository {
     );
 
     // Approximate counts (upsert doesn't distinguish create/update easily)
-    created = entries.length;
-    updated = 0;
-    return { created, updated };
+    return { created: entries.length, updated: 0 };
   }
 
   // ── Clock-in (upserts today's record with PRESENT status) ────────────────────
 
-  async clockIn(employeeId: number, clockIn: Date, remarks?: string | null): Promise<AttendanceDto> {
+  async clockIn(
+    employeeId: number,
+    clockIn: Date,
+    remarks?: string | null,
+  ): Promise<AttendanceDto> {
     const date = this.normaliseDate(clockIn);
     const raw = await prisma.attendance.upsert({
       where: { employeeId_date: { employeeId, date } },
       create: {
-        employeeId, date,
+        employeeId,
+        date,
         clockIn,
         status: 'PRESENT',
         remarks: remarks ?? null,
@@ -363,10 +406,7 @@ export class WorkforceRepository {
 
   // ══ SUMMARY & TREND ═══════════════════════════════════════════════════════
 
-  async getDailySummary(
-    date: Date,
-    departmentId?: number,
-  ): Promise<DailyAttendanceSummary> {
+  async getDailySummary(date: Date, departmentId?: number): Promise<DailyAttendanceSummary> {
     const normDate = this.normaliseDate(date);
     const empWhere: Prisma.EmployeeWhereInput = {
       deletedAt: null,
@@ -393,11 +433,17 @@ export class WorkforceRepository {
     const deptPresentMap = new Map<number, number>();
 
     for (const r of records) {
-      if (r.status === 'PRESENT') { counts.present++; }
-      else if (r.status === 'ABSENT')  { counts.absent++; }
-      else if (r.status === 'HALF_DAY') { counts.halfDay++; }
-      else if (r.status === 'LATE')    { counts.late++; }
-      else if (r.status === 'LEAVE')   { counts.onLeave++; }
+      if (r.status === 'PRESENT') {
+        counts.present++;
+      } else if (r.status === 'ABSENT') {
+        counts.absent++;
+      } else if (r.status === 'HALF_DAY') {
+        counts.halfDay++;
+      } else if (r.status === 'LATE') {
+        counts.late++;
+      } else if (r.status === 'LEAVE') {
+        counts.onLeave++;
+      }
 
       if (r.status === 'PRESENT' && r.employee.departmentId !== null) {
         deptPresentMap.set(
@@ -415,10 +461,10 @@ export class WorkforceRepository {
     });
     const deptTotalMap = new Map(
       deptEmpCounts
-        .filter(r => r.departmentId !== null)
-        .map(r => [r.departmentId as number, r._count.id]),
+        .filter((r) => r.departmentId !== null)
+        .map((r) => [r.departmentId as number, r._count.id]),
     );
-    const deptNameMap = new Map(depts.map(d => [d.id, d.name]));
+    const deptNameMap = new Map(depts.map((d) => [d.id, d.name]));
 
     const byDepartment = Array.from(deptTotalMap.entries()).map(([id, total]) => ({
       departmentId: id,
@@ -428,9 +474,8 @@ export class WorkforceRepository {
     }));
 
     const attended = counts.present + counts.late + counts.halfDay;
-    const attendanceRate = totalEmployees > 0
-      ? ((attended / totalEmployees) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const attendanceRate =
+      totalEmployees > 0 ? ((attended / totalEmployees) * 100).toFixed(1) + '%' : '0.0%';
 
     return {
       date: normDate.toISOString().split('T')[0]!,
@@ -445,10 +490,7 @@ export class WorkforceRepository {
     };
   }
 
-  async getAttendanceTrend(
-    days: number,
-    departmentId?: number,
-  ): Promise<AttendanceTrendEntry[]> {
+  async getAttendanceTrend(days: number, departmentId?: number): Promise<AttendanceTrendEntry[]> {
     const trend: AttendanceTrendEntry[] = [];
 
     for (let i = days - 1; i >= 0; i--) {
@@ -464,9 +506,9 @@ export class WorkforceRepository {
         select: { status: true },
       });
 
-      const present = records.filter(r => r.status === 'PRESENT').length;
-      const absent  = records.filter(r => r.status === 'ABSENT').length;
-      const late    = records.filter(r => r.status === 'LATE').length;
+      const present = records.filter((r) => r.status === 'PRESENT').length;
+      const absent = records.filter((r) => r.status === 'ABSENT').length;
+      const late = records.filter((r) => r.status === 'LATE').length;
 
       trend.push({
         date: d.toLocaleDateString('en-IN', { weekday: 'short' }),

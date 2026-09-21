@@ -5,15 +5,41 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BadRequestError, NotFoundError } from '../../errors';
 
 vi.mock('../../config/env', () => ({
-  env: { NODE_ENV: 'test', PORT: 3001, DATABASE_URL: 'postgresql://test:test@localhost/test', JWT_SECRET: 'test-secret-at-least-32-characters-long!!', JWT_EXPIRES_IN: '15m', REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!', REFRESH_TOKEN_EXPIRES_IN: '7d', BCRYPT_SALT_ROUNDS: 10, CORS_ORIGINS: 'http://localhost:5173', LOG_LEVEL: 'silent' },
+  env: {
+    NODE_ENV: 'test',
+    PORT: 3001,
+    DATABASE_URL: 'postgresql://test:test@localhost/test',
+    JWT_SECRET: 'test-secret-at-least-32-characters-long!!',
+    JWT_EXPIRES_IN: '15m',
+    REFRESH_TOKEN_SECRET: 'test-refresh-secret-at-least-32-chars!!',
+    REFRESH_TOKEN_EXPIRES_IN: '7d',
+    BCRYPT_SALT_ROUNDS: 10,
+    CORS_ORIGINS: 'http://localhost:5173',
+    LOG_LEVEL: 'silent',
+  },
 }));
 
 vi.mock('../../lib/prismaClient', () => ({
   prisma: {
-    securityIncident: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), findMany: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
-    incidentUpdate:   { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
-    securityAlert:    { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), findMany: vi.fn(), count: vi.fn(), delete: vi.fn(), groupBy: vi.fn() },
-    $transaction:     vi.fn((fns: unknown[]) => Promise.all(fns as Promise<unknown>[])),
+    securityIncident: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    incidentUpdate: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
+    securityAlert: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    $transaction: vi.fn((fns: unknown[]) => Promise.all(fns as Promise<unknown>[])),
   },
 }));
 
@@ -22,28 +48,57 @@ vi.mock('../../logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: 
 import { prisma } from '../../lib/prismaClient';
 
 const makeIncident = (status = 'OPEN', extra = {}) => ({
-  id: 1, incidentNumber: 'INC-0001', title: 'Test', description: 'desc',
-  type: 'FIRE', severity: 'MEDIUM', status,
-  location: null, departmentId: null, departmentName: null,
-  reportedById: null, reportedByName: null,
-  assignedToId: null, assignedToName: null,
-  occurredAt: new Date(), resolvedAt: null, closedAt: null,
-  rootCause: null, correctiveAction: null,
-  createdAt: new Date(), updatedAt: new Date(), deletedAt: null,
+  id: 1,
+  incidentNumber: 'INC-0001',
+  title: 'Test',
+  description: 'desc',
+  type: 'FIRE',
+  severity: 'MEDIUM',
+  status,
+  location: null,
+  departmentId: null,
+  departmentName: null,
+  reportedById: null,
+  reportedByName: null,
+  assignedToId: null,
+  assignedToName: null,
+  occurredAt: new Date(),
+  resolvedAt: null,
+  closedAt: null,
+  rootCause: null,
+  correctiveAction: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
   _count: { updates: 0, alerts: 0 },
-  updates: [], alerts: [],
+  updates: [],
+  alerts: [],
   ...extra,
 });
 
 const makeAlert = (status = 'ACTIVE', severity = 'MEDIUM', extra = {}) => ({
-  id: 1, alertNumber: 'ALT-0001', title: 'Alert', message: 'msg',
-  type: 'SAFETY', severity, status,
-  source: null, location: null, departmentId: null, departmentName: null,
+  id: 1,
+  alertNumber: 'ALT-0001',
+  title: 'Alert',
+  message: 'msg',
+  type: 'SAFETY',
+  severity,
+  status,
+  source: null,
+  location: null,
+  departmentId: null,
+  departmentName: null,
   incidentId: null,
-  acknowledgedById: null, acknowledgedByName: null, acknowledgedAt: null,
-  resolvedById: null, resolvedByName: null, resolvedAt: null,
-  expiresAt: null, createdById: null,
-  createdAt: new Date(), updatedAt: new Date(),
+  acknowledgedById: null,
+  acknowledgedByName: null,
+  acknowledgedAt: null,
+  resolvedById: null,
+  resolvedByName: null,
+  resolvedAt: null,
+  expiresAt: null,
+  createdById: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
   ...extra,
 });
 
@@ -61,39 +116,57 @@ describe('SecurityService', () => {
 
   describe('updateIncident — state machine', () => {
     it('allows OPEN → INVESTIGATING', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('OPEN'));
-      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('INVESTIGATING'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('OPEN'),
+      );
+      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('INVESTIGATING'),
+      );
 
       const result = await svc.updateIncident(1, { status: 'INVESTIGATING' });
       expect(result.status).toBe('INVESTIGATING');
     });
 
     it('allows OPEN → RESOLVED (minor incident shortcut) and auto-sets resolvedAt', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('OPEN'));
-      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('RESOLVED'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('OPEN'),
+      );
+      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('RESOLVED'),
+      );
 
       await svc.updateIncident(1, { status: 'RESOLVED' });
-      const updateCall = (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const updateCall = (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mock
+        .calls[0][0];
       expect(updateCall.data.resolvedAt).toBeDefined();
     });
 
     it('allows RESOLVED → CLOSED and auto-sets closedAt', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('RESOLVED'));
-      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('CLOSED'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('RESOLVED'),
+      );
+      (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('CLOSED'),
+      );
 
       await svc.updateIncident(1, { status: 'CLOSED' });
-      const updateCall = (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const updateCall = (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mock
+        .calls[0][0];
       expect(updateCall.data.closedAt).toBeDefined();
     });
 
     it('rejects OPEN → CLOSED (illegal jump)', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('OPEN'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('OPEN'),
+      );
 
       await expect(svc.updateIncident(1, { status: 'CLOSED' })).rejects.toThrow(BadRequestError);
     });
 
     it('rejects any transition from CLOSED', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('CLOSED'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('CLOSED'),
+      );
 
       await expect(svc.updateIncident(1, { status: 'RESOLVED' })).rejects.toThrow(BadRequestError);
     });
@@ -101,14 +174,18 @@ describe('SecurityService', () => {
 
   describe('deleteIncident', () => {
     it('soft-deletes OPEN incident', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('OPEN'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('OPEN'),
+      );
       (prisma.securityIncident.update as ReturnType<typeof vi.fn>).mockResolvedValue({});
 
       await expect(svc.deleteIncident(1)).resolves.not.toThrow();
     });
 
     it('blocks deletion of CLOSED incident', async () => {
-      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makeIncident('CLOSED'));
+      (prisma.securityIncident.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeIncident('CLOSED'),
+      );
 
       await expect(svc.deleteIncident(1)).rejects.toThrow(BadRequestError);
     });
@@ -118,23 +195,33 @@ describe('SecurityService', () => {
 
   describe('acknowledgeAlert', () => {
     it('acknowledges an ACTIVE alert', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('ACTIVE'));
-      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('ACKNOWLEDGED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('ACTIVE'),
+      );
+      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('ACKNOWLEDGED'),
+      );
 
       const result = await svc.acknowledgeAlert(1, {});
       expect(result.status).toBe('ACKNOWLEDGED');
     });
 
     it('throws BadRequestError if alert is not ACTIVE', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('RESOLVED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('RESOLVED'),
+      );
 
       await expect(svc.acknowledgeAlert(1, {})).rejects.toThrow(BadRequestError);
     });
 
     it('auto-expires and throws if expiresAt is in the past', async () => {
       const past = new Date(Date.now() - 1000);
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('ACTIVE', 'MEDIUM', { expiresAt: past }));
-      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('EXPIRED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('ACTIVE', 'MEDIUM', { expiresAt: past }),
+      );
+      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('EXPIRED'),
+      );
 
       await expect(svc.acknowledgeAlert(1, {})).rejects.toThrow(BadRequestError);
     });
@@ -142,15 +229,21 @@ describe('SecurityService', () => {
 
   describe('resolveAlert', () => {
     it('resolves ACKNOWLEDGED alert', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('ACKNOWLEDGED'));
-      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('RESOLVED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('ACKNOWLEDGED'),
+      );
+      (prisma.securityAlert.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('RESOLVED'),
+      );
 
       const result = await svc.resolveAlert(1, {});
       expect(result.status).toBe('RESOLVED');
     });
 
     it('throws BadRequestError if already RESOLVED', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('RESOLVED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('RESOLVED'),
+      );
 
       await expect(svc.resolveAlert(1, {})).rejects.toThrow(BadRequestError);
     });
@@ -158,13 +251,17 @@ describe('SecurityService', () => {
 
   describe('deleteAlert', () => {
     it('blocks deletion of ACTIVE + CRITICAL alert', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('ACTIVE', 'CRITICAL'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('ACTIVE', 'CRITICAL'),
+      );
 
       await expect(svc.deleteAlert(1)).rejects.toThrow(BadRequestError);
     });
 
     it('allows deletion of RESOLVED alert', async () => {
-      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeAlert('RESOLVED'));
+      (prisma.securityAlert.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeAlert('RESOLVED'),
+      );
       (prisma.securityAlert.delete as ReturnType<typeof vi.fn>).mockResolvedValue({});
 
       await expect(svc.deleteAlert(1)).resolves.not.toThrow();

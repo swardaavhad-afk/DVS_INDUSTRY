@@ -8,8 +8,8 @@ const svc = new ReportsService();
 
 function buildFilters(q: ReportQueryInput): ReportFilters {
   const filters: ReportFilters = {};
-  if (q.fromDate !== undefined)    filters.fromDate    = q.fromDate;
-  if (q.toDate !== undefined)      filters.toDate      = q.toDate;
+  if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
+  if (q.toDate !== undefined) filters.toDate = q.toDate;
   if (q.departmentId !== undefined) filters.departmentId = q.departmentId;
   return filters;
 }
@@ -28,10 +28,7 @@ export async function getDashboardCharts(_req: Request, res: Response): Promise<
 
 // Combined single endpoint for dashboard (KPIs + charts in one call)
 export async function getDashboard(_req: Request, res: Response): Promise<void> {
-  const [kpis, charts] = await Promise.all([
-    svc.getDashboardKPIs(),
-    svc.getDashboardCharts(),
-  ]);
+  const [kpis, charts] = await Promise.all([svc.getDashboardKPIs(), svc.getDashboardCharts()]);
   sendSuccess(res, { kpis, charts });
 }
 
@@ -76,10 +73,10 @@ export async function getClientReport(req: Request, res: Response): Promise<void
 export async function getAttendanceReport(req: Request, res: Response): Promise<void> {
   const q = req.query as unknown as AttendanceReportQueryInput;
   const filters: AttendanceReportFilters = {
-    ...(q.fromDate !== undefined     && { fromDate: q.fromDate }),
-    ...(q.toDate !== undefined       && { toDate: q.toDate }),
+    ...(q.fromDate !== undefined && { fromDate: q.fromDate }),
+    ...(q.toDate !== undefined && { toDate: q.toDate }),
     ...(q.departmentId !== undefined && { departmentId: q.departmentId }),
-    sortBy:    q.sortBy,
+    sortBy: q.sortBy,
     sortOrder: q.sortOrder,
   };
   const report = await svc.getAttendanceReport(filters);

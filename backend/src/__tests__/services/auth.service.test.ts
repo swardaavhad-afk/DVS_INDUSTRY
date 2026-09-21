@@ -8,7 +8,8 @@ import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError } from
 // ── Mock env FIRST to prevent process.exit(1) ─────────────────────────────────
 vi.mock('../../config/env', () => ({
   env: {
-    NODE_ENV: 'test', PORT: 3001,
+    NODE_ENV: 'test',
+    PORT: 3001,
     DATABASE_URL: 'postgresql://test:test@localhost/test',
     JWT_SECRET: 'test-secret-at-least-32-characters-long!!',
     JWT_EXPIRES_IN: '15m',
@@ -24,8 +25,15 @@ vi.mock('../../config/env', () => ({
 
 vi.mock('../../lib/prismaClient', () => ({
   prisma: {
-    user:         { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), findMany: vi.fn(), count: vi.fn() },
-    role:         { findUnique: vi.fn(), findMany: vi.fn() },
+    user: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    role: { findUnique: vi.fn(), findMany: vi.fn() },
     refreshToken: { create: vi.fn(), findUnique: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn((fns: unknown[]) => Promise.all(fns as Promise<unknown>[])),
   },
@@ -33,20 +41,20 @@ vi.mock('../../lib/prismaClient', () => ({
 
 vi.mock('bcrypt', () => ({
   default: {
-    hash:    vi.fn().mockResolvedValue('$hashed$'),
+    hash: vi.fn().mockResolvedValue('$hashed$'),
     compare: vi.fn(),
   },
-  hash:    vi.fn().mockResolvedValue('$hashed$'),
+  hash: vi.fn().mockResolvedValue('$hashed$'),
   compare: vi.fn(),
 }));
 
 vi.mock('../../utils/token', () => ({
-  generateAccessToken:   vi.fn().mockReturnValue('access-token'),
-  generateRefreshToken:  vi.fn().mockReturnValue('refresh-token'),
-  verifyRefreshToken:    vi.fn(),
-  parseExpiresInMs:      vi.fn().mockReturnValue(7 * 24 * 60 * 60 * 1000),
-  generateJti:           vi.fn().mockReturnValue('jti-123'),
-  generateOpaqueToken:   vi.fn().mockReturnValue('opaque-token'),
+  generateAccessToken: vi.fn().mockReturnValue('access-token'),
+  generateRefreshToken: vi.fn().mockReturnValue('refresh-token'),
+  verifyRefreshToken: vi.fn(),
+  parseExpiresInMs: vi.fn().mockReturnValue(7 * 24 * 60 * 60 * 1000),
+  generateJti: vi.fn().mockReturnValue('jti-123'),
+  generateOpaqueToken: vi.fn().mockReturnValue('opaque-token'),
 }));
 
 vi.mock('../../logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
@@ -57,14 +65,28 @@ import { prisma } from '../../lib/prismaClient';
 import bcrypt from 'bcrypt';
 
 const mockUser = {
-  id: 1, fullName: 'Test Admin', email: 'admin@test.com',
-  password: '$hashed$', phone: null, roleId: 1, isActive: true,
-  lastLogin: null, createdAt: new Date(), updatedAt: new Date(),
+  id: 1,
+  fullName: 'Test Admin',
+  email: 'admin@test.com',
+  password: '$hashed$',
+  phone: null,
+  roleId: 1,
+  isActive: true,
+  lastLogin: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
   role: { id: 1, name: 'ADMIN', description: null, createdAt: new Date(), updatedAt: new Date() },
-  refreshTokens: [], employee: null,
+  refreshTokens: [],
+  employee: null,
 };
 
-const mockRole = { id: 1, name: 'ADMIN', description: 'Administrator', createdAt: new Date(), updatedAt: new Date() };
+const mockRole = {
+  id: 1,
+  name: 'ADMIN',
+  description: 'Administrator',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 // Import AFTER mocks
 const { AuthService } = await import('../../services/auth.service');
@@ -88,7 +110,10 @@ describe('AuthService', () => {
       (prisma.user.create as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
       const result = await svc.register({
-        fullName: 'Test Admin', email: 'admin@test.com', password: 'Secret@1234', roleId: 1,
+        fullName: 'Test Admin',
+        email: 'admin@test.com',
+        password: 'Secret@1234',
+        roleId: 1,
       });
 
       expect(result.email).toBe('admin@test.com');
@@ -99,7 +124,7 @@ describe('AuthService', () => {
       (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
 
       await expect(
-        svc.register({ fullName: 'X', email: 'admin@test.com', password: 'pass', roleId: 1 })
+        svc.register({ fullName: 'X', email: 'admin@test.com', password: 'pass', roleId: 1 }),
       ).rejects.toThrow(ConflictError);
     });
 
@@ -108,7 +133,7 @@ describe('AuthService', () => {
       (prisma.role.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       await expect(
-        svc.register({ fullName: 'X', email: 'new@test.com', password: 'pass', roleId: 99 })
+        svc.register({ fullName: 'X', email: 'new@test.com', password: 'pass', roleId: 99 }),
       ).rejects.toThrow(BadRequestError);
     });
   });
@@ -143,7 +168,10 @@ describe('AuthService', () => {
     });
 
     it('throws ForbiddenError for inactive account', async () => {
-      (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ ...mockUser, isActive: false });
+      (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...mockUser,
+        isActive: false,
+      });
       (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       // isActive=false check happens before password check — throws ForbiddenError
@@ -161,7 +189,7 @@ describe('AuthService', () => {
       (prisma.refreshToken.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 1 });
 
       await expect(
-        svc.changePassword(1, { currentPassword: 'old', newPassword: 'NewPass@1' })
+        svc.changePassword(1, { currentPassword: 'old', newPassword: 'NewPass@1' }),
       ).resolves.not.toThrow();
     });
 
@@ -170,7 +198,7 @@ describe('AuthService', () => {
       (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
       await expect(
-        svc.changePassword(1, { currentPassword: 'wrong', newPassword: 'NewPass@1' })
+        svc.changePassword(1, { currentPassword: 'wrong', newPassword: 'NewPass@1' }),
       ).rejects.toThrow(BadRequestError);
     });
   });

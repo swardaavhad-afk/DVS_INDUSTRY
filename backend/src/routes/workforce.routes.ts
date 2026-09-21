@@ -5,13 +5,19 @@ import { authenticate } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
 import * as WorkforceController from '../controllers/workforce.controller';
 import {
-  createShiftSchema, updateShiftSchema,
-  shiftIdParamSchema, shiftQuerySchema,
-  createAttendanceSchema, updateAttendanceSchema,
-  attendanceIdParamSchema, attendanceQuerySchema,
-  clockInSchema, clockOutSchema,
+  createShiftSchema,
+  updateShiftSchema,
+  shiftIdParamSchema,
+  shiftQuerySchema,
+  createAttendanceSchema,
+  updateAttendanceSchema,
+  attendanceIdParamSchema,
+  attendanceQuerySchema,
+  clockInSchema,
+  clockOutSchema,
   bulkAttendanceSchema,
-  attendanceSummarySchema, attendanceTrendSchema,
+  attendanceSummarySchema,
+  attendanceTrendSchema,
 } from '../validators/workforce.validator';
 import { ROLES } from '../constants';
 
@@ -19,10 +25,17 @@ const router = Router();
 router.use(authenticate);
 
 // ── Role groups ───────────────────────────────────────────────────────────────
-const ALL_ROLES   = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.STORE, ROLES.PRODUCTION, ROLES.SALES] as const;
+const ALL_ROLES = [
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.HR,
+  ROLES.STORE,
+  ROLES.PRODUCTION,
+  ROLES.SALES,
+] as const;
 const WRITE_ROLES = [ROLES.ADMIN, ROLES.HR] as const;
-const ADMIN_ONLY  = [ROLES.ADMIN] as const;
-const HR_MGR      = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR] as const;
+const ADMIN_ONLY = [ROLES.ADMIN] as const;
+const HR_MGR = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR] as const;
 
 // ════════════════════════════════════════════════════════════════
 // SHIFTS

@@ -6,11 +6,7 @@ import type {
   CreateDepartmentData,
   UpdateDepartmentData,
 } from '../interfaces';
-import {
-  ConflictError,
-  NotFoundError,
-  BadRequestError,
-} from '../errors';
+import { ConflictError, NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**
@@ -36,17 +32,13 @@ export class DepartmentService {
     // Rule 1 — unique name (case-insensitive, across all records)
     const nameConflict = await this.repo.findByName(data.name);
     if (nameConflict !== null) {
-      throw new ConflictError(
-        `A department with the name "${data.name}" already exists`,
-      );
+      throw new ConflictError(`A department with the name "${data.name}" already exists`);
     }
 
     // Rule 2 — unique code (case-sensitive, uppercase enforced by validator)
     const codeConflict = await this.repo.findByCode(data.code);
     if (codeConflict !== null) {
-      throw new ConflictError(
-        `A department with the code "${data.code}" already exists`,
-      );
+      throw new ConflictError(`A department with the code "${data.code}" already exists`);
     }
 
     const dept = await this.repo.create(data);
@@ -61,18 +53,14 @@ export class DepartmentService {
 
     // Cannot modify a soft-deleted department
     if (existing.deletedAt !== null) {
-      throw new BadRequestError(
-        'Cannot update a deleted department. Restore it first.',
-      );
+      throw new BadRequestError('Cannot update a deleted department. Restore it first.');
     }
 
     // If renaming — check uniqueness against OTHER departments
     if (data.name !== undefined && data.name !== existing.name) {
       const nameConflict = await this.repo.findByName(data.name);
       if (nameConflict !== null && nameConflict.id !== id) {
-        throw new ConflictError(
-          `A department with the name "${data.name}" already exists`,
-        );
+        throw new ConflictError(`A department with the name "${data.name}" already exists`);
       }
     }
 
@@ -80,9 +68,7 @@ export class DepartmentService {
     if (data.code !== undefined && data.code !== existing.code) {
       const codeConflict = await this.repo.findByCode(data.code);
       if (codeConflict !== null && codeConflict.id !== id) {
-        throw new ConflictError(
-          `A department with the code "${data.code}" already exists`,
-        );
+        throw new ConflictError(`A department with the code "${data.code}" already exists`);
       }
     }
 
@@ -125,11 +111,7 @@ export class DepartmentService {
 
     // Name uniqueness check before restore
     const nameConflict = await this.repo.findByName(existing.name);
-    if (
-      nameConflict !== null &&
-      nameConflict.id !== id &&
-      nameConflict.isActive
-    ) {
+    if (nameConflict !== null && nameConflict.id !== id && nameConflict.isActive) {
       throw new ConflictError(
         `Cannot restore: another active department already uses the name "${existing.name}".`,
       );

@@ -27,10 +27,17 @@ const router = Router();
 router.use(authenticate);
 
 // ── Role groups ───────────────────────────────────────────────────────────────
-const ALL_ROLES    = [ROLES.ADMIN, ROLES.MANAGER, ROLES.HR, ROLES.STORE, ROLES.PRODUCTION, ROLES.SALES] as const;
-const SEC_READ     = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION] as const;
-const SEC_WRITE    = [ROLES.ADMIN, ROLES.MANAGER] as const;
-const SEC_MANAGE   = [ROLES.ADMIN] as const;
+const ALL_ROLES = [
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.HR,
+  ROLES.STORE,
+  ROLES.PRODUCTION,
+  ROLES.SALES,
+] as const;
+const SEC_READ = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION] as const;
+const SEC_WRITE = [ROLES.ADMIN, ROLES.MANAGER] as const;
+const SEC_MANAGE = [ROLES.ADMIN] as const;
 
 // ════════════════════════════════════════════════════════════════
 // KPIs (before parameterised routes)

@@ -28,7 +28,9 @@ function startOfMonth(): Date {
 function fmtDate(d: Date | null | undefined): string {
   if (d == null) return '—';
   return d.toLocaleDateString('en-IN', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
@@ -39,7 +41,6 @@ function dayLabel(d: Date): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class ReportsService {
-
   // ══ DASHBOARD KPIs ════════════════════════════════════════════════════════
 
   async getDashboardKPIs(): Promise<DashboardKPIs> {
@@ -138,30 +139,28 @@ export class ReportsService {
     }
 
     // Fulfilment rate
-    const fulfillment = coNotCancelled > 0
-      ? ((coDelivered / coNotCancelled) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const fulfillment =
+      coNotCancelled > 0 ? ((coDelivered / coNotCancelled) * 100).toFixed(1) + '%' : '0.0%';
 
     // Today's attendance KPIs
     const attCounts = { present: 0, absent: 0, late: 0, onLeave: 0 };
     for (const a of todayAttendance) {
-      if (a.status === 'PRESENT')  attCounts.present++;
-      else if (a.status === 'ABSENT')   attCounts.absent++;
-      else if (a.status === 'LATE')     attCounts.late++;
-      else if (a.status === 'LEAVE')    attCounts.onLeave++;
+      if (a.status === 'PRESENT') attCounts.present++;
+      else if (a.status === 'ABSENT') attCounts.absent++;
+      else if (a.status === 'LATE') attCounts.late++;
+      else if (a.status === 'LEAVE') attCounts.onLeave++;
       else if (a.status === 'HALF_DAY') attCounts.present++; // half-day counts as attended
     }
     const attTotal = todayAttendance.length;
-    const attRate = attTotal > 0
-      ? (((attCounts.present + attCounts.late) / attTotal) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const attRate =
+      attTotal > 0
+        ? (((attCounts.present + attCounts.late) / attTotal) * 100).toFixed(1) + '%'
+        : '0.0%';
 
     // Production KPIs
-    const woProd  = woOutputAgg._sum.goodQty?.toNumber()     ?? 0;
-    const woTgt   = woTargetAgg._sum.targetQuantity?.toNumber() ?? 0;
-    const prodRate = woTgt > 0
-      ? ((woProd / woTgt) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const woProd = woOutputAgg._sum.goodQty?.toNumber() ?? 0;
+    const woTgt = woTargetAgg._sum.targetQuantity?.toNumber() ?? 0;
+    const prodRate = woTgt > 0 ? ((woProd / woTgt) * 100).toFixed(1) + '%' : '0.0%';
 
     return {
       totalEmployees,
@@ -182,10 +181,10 @@ export class ReportsService {
       orderFulfillmentRate: fulfillment,
       totalScrapThisMonth: scrapQty.toFixed(3),
       scrapValueThisMonth: scrapVal.toFixed(2),
-      activeWorkOrders:          woActive,
-      completedWorkOrders:       woCompleted,
-      overdueWorkOrders:         woOverdue,
-      productionCompletionRate:  prodRate,
+      activeWorkOrders: woActive,
+      completedWorkOrders: woCompleted,
+      overdueWorkOrders: woOverdue,
+      productionCompletionRate: prodRate,
       totalDepartments: totalDepts,
       activeDepartments: activeDepts,
     };
@@ -197,22 +196,21 @@ export class ReportsService {
     logger.info('Fetching dashboard chart data');
 
     // Order status pie
-    const [coPending, coApproved, coInProd, coDispatched, coDelivered] =
-      await prisma.$transaction([
-        prisma.clientOrder.count({ where: { status: 'PENDING' } }),
-        prisma.clientOrder.count({ where: { status: 'APPROVED' } }),
-        prisma.clientOrder.count({ where: { status: 'IN_PRODUCTION' } }),
-        prisma.clientOrder.count({ where: { status: 'DISPATCHED' } }),
-        prisma.clientOrder.count({ where: { status: 'DELIVERED' } }),
-      ]);
+    const [coPending, coApproved, coInProd, coDispatched, coDelivered] = await prisma.$transaction([
+      prisma.clientOrder.count({ where: { status: 'PENDING' } }),
+      prisma.clientOrder.count({ where: { status: 'APPROVED' } }),
+      prisma.clientOrder.count({ where: { status: 'IN_PRODUCTION' } }),
+      prisma.clientOrder.count({ where: { status: 'DISPATCHED' } }),
+      prisma.clientOrder.count({ where: { status: 'DELIVERED' } }),
+    ]);
 
     const orderStatusPie = [
-      { name: 'Pending',       value: coPending,    color: '#E65100' },
-      { name: 'Approved',      value: coApproved,   color: '#F57F17' },
-      { name: 'In Production', value: coInProd,     color: '#A52A2A' },
-      { name: 'Dispatched',    value: coDispatched, color: '#1565C0' },
-      { name: 'Delivered',     value: coDelivered,  color: '#2E7D32' },
-    ].filter(o => o.value > 0);
+      { name: 'Pending', value: coPending, color: '#E65100' },
+      { name: 'Approved', value: coApproved, color: '#F57F17' },
+      { name: 'In Production', value: coInProd, color: '#A52A2A' },
+      { name: 'Dispatched', value: coDispatched, color: '#1565C0' },
+      { name: 'Delivered', value: coDelivered, color: '#2E7D32' },
+    ].filter((o) => o.value > 0);
 
     // Scrap by department (this month)
     const scrapByDeptRaw = await prisma.scrapRecord.groupBy({
@@ -224,16 +222,23 @@ export class ReportsService {
       _sum: { quantity: true },
     });
 
-    const scrapByDepartment = scrapByDeptRaw.map(r => ({
-      dept: r.departmentName ?? 'Unknown',
-      kg: r._sum.quantity?.toNumber() ?? 0,
-    })).sort((a, b) => b.kg - a.kg).slice(0, 6);
+    const scrapByDepartment = scrapByDeptRaw
+      .map((r) => ({
+        dept: r.departmentName ?? 'Unknown',
+        kg: r._sum.quantity?.toNumber() ?? 0,
+      }))
+      .sort((a, b) => b.kg - a.kg)
+      .slice(0, 6);
 
     // Scrap trend — last 7 days
     const scrapTrend: Array<{ day: string; scrap: number }> = [];
     // Attendance trend — last 7 days
     const attendanceTrend: Array<{
-      date: string; present: number; absent: number; late: number; onLeave: number;
+      date: string;
+      present: number;
+      absent: number;
+      late: number;
+      onLeave: number;
     }> = [];
 
     for (let i = 6; i >= 0; i--) {
@@ -262,9 +267,9 @@ export class ReportsService {
       const attCounts = { present: 0, absent: 0, late: 0, onLeave: 0 };
       for (const a of attRecords) {
         if (a.status === 'PRESENT' || a.status === 'HALF_DAY') attCounts.present++;
-        else if (a.status === 'ABSENT')  attCounts.absent++;
-        else if (a.status === 'LATE')    attCounts.late++;
-        else if (a.status === 'LEAVE')   attCounts.onLeave++;
+        else if (a.status === 'ABSENT') attCounts.absent++;
+        else if (a.status === 'LATE') attCounts.late++;
+        else if (a.status === 'LEAVE') attCounts.onLeave++;
       }
       attendanceTrend.push({ date: dayLabel(d), ...attCounts });
     }
@@ -274,13 +279,17 @@ export class ReportsService {
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, orderNumber: true, product: true, quantity: true,
-        status: true, createdAt: true,
+        id: true,
+        orderNumber: true,
+        product: true,
+        quantity: true,
+        status: true,
+        createdAt: true,
         client: { select: { name: true } },
       },
     });
 
-    const recentOrders = recentOrdersRaw.map(o => ({
+    const recentOrders = recentOrdersRaw.map((o) => ({
       id: o.id,
       orderNumber: o.orderNumber,
       client: o.client.name,
@@ -288,7 +297,8 @@ export class ReportsService {
       qty: o.quantity,
       status: o.status.toLowerCase().replace('_', '-'),
       date: o.createdAt.toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short',
+        day: '2-digit',
+        month: 'short',
       }),
     }));
 
@@ -306,9 +316,11 @@ export class ReportsService {
     });
 
     let totalValue = 0;
-    let inStock = 0, lowStockCount = 0, outOfStockCount = 0;
+    let inStock = 0,
+      lowStockCount = 0,
+      outOfStockCount = 0;
 
-    const rows = materials.map(m => {
+    const rows = materials.map((m) => {
       const stock = m.currentStock.toNumber();
       const min = m.minStockLevel.toNumber();
       const cost = m.costPerUnit?.toNumber() ?? 0;
@@ -316,9 +328,13 @@ export class ReportsService {
       totalValue += value;
 
       let status = 'In Stock';
-      if (stock === 0) { status = 'Out of Stock'; outOfStockCount++; }
-      else if (stock <= min) { status = 'Low Stock'; lowStockCount++; }
-      else inStock++;
+      if (stock === 0) {
+        status = 'Out of Stock';
+        outOfStockCount++;
+      } else if (stock <= min) {
+        status = 'Low Stock';
+        lowStockCount++;
+      } else inStock++;
 
       return {
         name: m.name,
@@ -363,8 +379,12 @@ export class ReportsService {
         where,
         orderBy: [{ department: { name: 'asc' } }, { firstName: 'asc' }],
         select: {
-          employeeCode: true, firstName: true, lastName: true,
-          designation: true, employmentType: true, status: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          designation: true,
+          employmentType: true,
+          status: true,
           joiningDate: true,
           department: { select: { name: true } },
         },
@@ -373,26 +393,31 @@ export class ReportsService {
         by: ['departmentId'],
         where: { deletedAt: null, departmentId: { not: null } },
         _count: { id: true },
+        orderBy: { departmentId: 'asc' },
       }),
     ]);
 
     // Enrich department counts
-    const deptIds = byDeptRaw.map(r => r.departmentId).filter((id): id is number => id !== null);
-    const depts = deptIds.length > 0
-      ? await prisma.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
-      : [];
-    const deptMap = new Map(depts.map(d => [d.id, d.name]));
+    const deptIds = byDeptRaw.map((r) => r.departmentId).filter((id): id is number => id !== null);
+    const depts =
+      deptIds.length > 0
+        ? await prisma.department.findMany({
+            where: { id: { in: deptIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const deptMap = new Map(depts.map((d) => [d.id, d.name]));
 
     const byDepartment = byDeptRaw
-      .filter(r => r.departmentId !== null)
-      .map(r => ({
+      .filter((r) => r.departmentId !== null)
+      .map((r) => ({
         name: deptMap.get(r.departmentId as number) ?? 'Unknown',
-        count: r._count.id,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
       }))
       .sort((a, b) => b.count - a.count);
 
     const statusCounts = { active: 0, inactive: 0, onLeave: 0, terminated: 0 };
-    const rows = employees.map(e => {
+    const rows = employees.map((e) => {
       if (e.status === 'ACTIVE') statusCounts.active++;
       else if (e.status === 'INACTIVE') statusCounts.inactive++;
       else if (e.status === 'ON_LEAVE') statusCounts.onLeave++;
@@ -434,8 +459,13 @@ export class ReportsService {
           where: dateWhere ? { orderDate: dateWhere } : {},
           orderBy: { orderDate: 'desc' },
           select: {
-            orderNumber: true, product: true, quantity: true, value: true,
-            orderDate: true, requiredDate: true, status: true,
+            orderNumber: true,
+            product: true,
+            quantity: true,
+            value: true,
+            orderDate: true,
+            requiredDate: true,
+            status: true,
             client: { select: { name: true } },
           },
         }),
@@ -443,8 +473,13 @@ export class ReportsService {
           where: dateWhere ? { orderDate: dateWhere } : {},
           orderBy: { orderDate: 'desc' },
           select: {
-            poNumber: true, material: true, quantity: true, totalCost: true,
-            orderDate: true, expectedDelivery: true, status: true,
+            poNumber: true,
+            material: true,
+            quantity: true,
+            totalCost: true,
+            orderDate: true,
+            expectedDelivery: true,
+            status: true,
             supplier: { select: { name: true } },
           },
         }),
@@ -476,7 +511,7 @@ export class ReportsService {
         totalRevenue: (coValue._sum.value?.toNumber() ?? 0).toFixed(2),
         totalProcurement: (poValue._sum.totalCost?.toNumber() ?? 0).toFixed(2),
       },
-      clientOrders: clientOrders.map(o => ({
+      clientOrders: clientOrders.map((o) => ({
         orderNumber: o.orderNumber,
         client: o.client.name,
         product: o.product,
@@ -486,7 +521,7 @@ export class ReportsService {
         requiredDate: fmtDate(o.requiredDate),
         status: o.status,
       })),
-      purchaseOrders: purchaseOrders.map(p => ({
+      purchaseOrders: purchaseOrders.map((p) => ({
         poNumber: p.poNumber,
         supplier: p.supplier.name,
         material: p.material,
@@ -520,24 +555,30 @@ export class ReportsService {
         by: ['departmentName'],
         where: { ...where, departmentName: { not: null } },
         _sum: { quantity: true },
+        orderBy: { departmentName: 'asc' },
       }),
       prisma.scrapRecord.groupBy({
         by: ['materialId'],
         where,
         _sum: { quantity: true },
+        orderBy: { materialId: 'asc' },
       }),
     ]);
 
     // Enrich material names for byMaterial
-    const matIds = byMatRaw.map(r => r.materialId);
-    const mats = matIds.length > 0
-      ? await prisma.material.findMany({ where: { id: { in: matIds } }, select: { id: true, name: true } })
-      : [];
-    const matMap = new Map(mats.map(m => [m.id, m.name]));
+    const matIds = byMatRaw.map((r) => r.materialId);
+    const mats =
+      matIds.length > 0
+        ? await prisma.material.findMany({
+            where: { id: { in: matIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const matMap = new Map(mats.map((m) => [m.id, m.name]));
 
     let totalQty = 0;
     let totalRecovery = 0;
-    const rows = records.map(r => {
+    const rows = records.map((r) => {
       totalQty += r.quantity.toNumber();
       totalRecovery += r.recoveryValue?.toNumber() ?? 0;
       return {
@@ -559,14 +600,18 @@ export class ReportsService {
       summary: {
         totalQuantity: totalQty.toFixed(3),
         totalRecoveryValue: totalRecovery.toFixed(2),
-        byDepartment: byDeptRaw.map(r => ({
-          department: r.departmentName ?? 'Unknown',
-          quantity: r._sum.quantity?.toFixed(3) ?? '0.000',
-        })).sort((a, b) => parseFloat(b.quantity) - parseFloat(a.quantity)),
-        byMaterial: byMatRaw.map(r => ({
-          material: matMap.get(r.materialId) ?? 'Unknown',
-          quantity: r._sum.quantity?.toFixed(3) ?? '0.000',
-        })).sort((a, b) => parseFloat(b.quantity) - parseFloat(a.quantity)),
+        byDepartment: byDeptRaw
+          .map((r) => ({
+            department: r.departmentName ?? 'Unknown',
+            quantity: r._sum?.quantity?.toFixed(3) ?? '0.000',
+          }))
+          .sort((a, b) => parseFloat(b.quantity) - parseFloat(a.quantity)),
+        byMaterial: byMatRaw
+          .map((r) => ({
+            material: matMap.get(r.materialId) ?? 'Unknown',
+            quantity: r._sum?.quantity?.toFixed(3) ?? '0.000',
+          }))
+          .sort((a, b) => parseFloat(b.quantity) - parseFloat(a.quantity)),
       },
       rows,
     };
@@ -600,9 +645,12 @@ export class ReportsService {
     let totalRating = 0;
     let ratedCount = 0;
 
-    const rows = suppliers.map(s => {
+    const rows = suppliers.map((s) => {
       const po = poMap.get(s.id) ?? { total: 0, delivered: 0, pending: 0 };
-      if (s.rating) { totalRating += s.rating.toNumber(); ratedCount++; }
+      if (s.rating) {
+        totalRating += s.rating.toNumber();
+        ratedCount++;
+      }
       return {
         name: s.name,
         code: s.code,
@@ -621,7 +669,7 @@ export class ReportsService {
       period: `Up to ${fmtDate(new Date())}`,
       summary: {
         totalSuppliers: suppliers.length,
-        activeSuppliers: suppliers.filter(s => s.isActive).length,
+        activeSuppliers: suppliers.filter((s) => s.isActive).length,
         avgRating: ratedCount > 0 ? (totalRating / ratedCount).toFixed(1) : '—',
         totalPOs: poCounts.reduce((s, p) => s + p._count.id, 0),
       },
@@ -645,9 +693,15 @@ export class ReportsService {
       _sum: { value: true },
     });
 
-    const clientMap = new Map<number, {
-      total: number; delivered: number; pending: number; revenue: number;
-    }>();
+    const clientMap = new Map<
+      number,
+      {
+        total: number;
+        delivered: number;
+        pending: number;
+        revenue: number;
+      }
+    >();
     for (const o of ordersByClient) {
       const entry = clientMap.get(o.clientId) ?? { total: 0, delivered: 0, pending: 0, revenue: 0 };
       entry.total += o._count.id;
@@ -662,7 +716,7 @@ export class ReportsService {
     let totalRevenue = 0;
     let totalOrders = 0;
 
-    const rows = clients.map(c => {
+    const rows = clients.map((c) => {
       const stats = clientMap.get(c.id) ?? { total: 0, delivered: 0, pending: 0, revenue: 0 };
       totalRevenue += stats.revenue;
       totalOrders += stats.total;
@@ -681,7 +735,7 @@ export class ReportsService {
       period: `Up to ${fmtDate(new Date())}`,
       summary: {
         totalClients: clients.length,
-        activeClients: clients.filter(c => c.isActive).length,
+        activeClients: clients.filter((c) => c.isActive).length,
         totalRevenue: totalRevenue.toFixed(2),
         totalOrders,
       },
@@ -719,9 +773,7 @@ export class ReportsService {
       prisma.attendance.findMany({
         where: {
           ...(dateWhere ? { date: dateWhere } : {}),
-          ...(filters.departmentId
-            ? { employee: { departmentId: filters.departmentId } }
-            : {}),
+          ...(filters.departmentId ? { employee: { departmentId: filters.departmentId } } : {}),
         },
         select: {
           employeeId: true,
@@ -737,64 +789,87 @@ export class ReportsService {
 
     // Index attendance records by employeeId
     type AttCounts = {
-      present: number; absent: number; halfDay: number;
-      late: number; onLeave: number; workingHours: number;
+      present: number;
+      absent: number;
+      halfDay: number;
+      late: number;
+      onLeave: number;
+      workingHours: number;
     };
     const attMap = new Map<number, AttCounts>();
     for (const a of attendanceRecords) {
       const entry = attMap.get(a.employeeId) ?? {
-        present: 0, absent: 0, halfDay: 0, late: 0, onLeave: 0, workingHours: 0,
+        present: 0,
+        absent: 0,
+        halfDay: 0,
+        late: 0,
+        onLeave: 0,
+        workingHours: 0,
       };
-      if (a.status === 'PRESENT')       entry.present++;
-      else if (a.status === 'ABSENT')   entry.absent++;
+      if (a.status === 'PRESENT') entry.present++;
+      else if (a.status === 'ABSENT') entry.absent++;
       else if (a.status === 'HALF_DAY') entry.halfDay++;
-      else if (a.status === 'LATE')     entry.late++;
-      else if (a.status === 'LEAVE')    entry.onLeave++;
+      else if (a.status === 'LATE') entry.late++;
+      else if (a.status === 'LEAVE') entry.onLeave++;
       entry.workingHours += a.workingHours ?? 0;
       attMap.set(a.employeeId, entry);
     }
 
     // Per-department aggregation
-    const deptMap = new Map(departments.map(d => [d.id, d.name]));
+    const deptMap = new Map(departments.map((d) => [d.id, d.name]));
     type DeptAgg = {
       department: string;
-      present: number; absent: number; late: number; onLeave: number; total: number;
+      present: number;
+      absent: number;
+      late: number;
+      onLeave: number;
+      total: number;
     };
     const deptAgg = new Map<number, DeptAgg>();
 
     // Summary totals
-    let totalPresent = 0, totalAbsent = 0, totalHalfDay = 0;
-    let totalLate = 0, totalOnLeave = 0;
+    let totalPresent = 0,
+      totalAbsent = 0,
+      totalHalfDay = 0;
+    let totalLate = 0,
+      totalOnLeave = 0;
     let sumRates = 0;
 
-    const rows = employees.map(e => {
+    const rows = employees.map((e) => {
       const att = attMap.get(e.id) ?? {
-        present: 0, absent: 0, halfDay: 0, late: 0, onLeave: 0, workingHours: 0,
+        present: 0,
+        absent: 0,
+        halfDay: 0,
+        late: 0,
+        onLeave: 0,
+        workingHours: 0,
       };
       const totalDays = att.present + att.absent + att.halfDay + att.late + att.onLeave;
       const attended = att.present + att.late + att.halfDay;
-      const rate = totalDays > 0
-        ? parseFloat(((attended / totalDays) * 100).toFixed(1))
-        : 0;
+      const rate = totalDays > 0 ? parseFloat(((attended / totalDays) * 100).toFixed(1)) : 0;
 
-      totalPresent  += att.present;
-      totalAbsent   += att.absent;
-      totalHalfDay  += att.halfDay;
-      totalLate     += att.late;
-      totalOnLeave  += att.onLeave;
-      sumRates      += rate;
+      totalPresent += att.present;
+      totalAbsent += att.absent;
+      totalHalfDay += att.halfDay;
+      totalLate += att.late;
+      totalOnLeave += att.onLeave;
+      sumRates += rate;
 
       // Department aggregation
       if (e.departmentId !== null) {
         const da = deptAgg.get(e.departmentId) ?? {
           department: deptMap.get(e.departmentId) ?? 'Unknown',
-          present: 0, absent: 0, late: 0, onLeave: 0, total: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          onLeave: 0,
+          total: 0,
         };
-        da.present  += att.present + att.halfDay;
-        da.absent   += att.absent;
-        da.late     += att.late;
-        da.onLeave  += att.onLeave;
-        da.total    += totalDays;
+        da.present += att.present + att.halfDay;
+        da.absent += att.absent;
+        da.late += att.late;
+        da.onLeave += att.onLeave;
+        da.total += totalDays;
         deptAgg.set(e.departmentId, da);
       }
 
@@ -814,27 +889,25 @@ export class ReportsService {
       };
     });
 
-    const avgRate = employees.length > 0
-      ? `${(sumRates / employees.length).toFixed(1)}%`
-      : '0.0%';
+    const avgRate = employees.length > 0 ? `${(sumRates / employees.length).toFixed(1)}%` : '0.0%';
 
-    const byDepartment = Array.from(deptAgg.values()).map(da => ({
-      department: da.department,
-      present: da.present,
-      absent: da.absent,
-      late: da.late,
-      onLeave: da.onLeave,
-      total: da.total,
-      rate: da.total > 0
-        ? `${(((da.present + da.late) / da.total) * 100).toFixed(1)}%`
-        : '0.0%',
-    })).sort((a, b) => b.present - a.present);
+    const byDepartment = Array.from(deptAgg.values())
+      .map((da) => ({
+        department: da.department,
+        present: da.present,
+        absent: da.absent,
+        late: da.late,
+        onLeave: da.onLeave,
+        total: da.total,
+        rate: da.total > 0 ? `${(((da.present + da.late) / da.total) * 100).toFixed(1)}%` : '0.0%',
+      }))
+      .sort((a, b) => b.present - a.present);
 
     // Apply sort
     const { sortBy = 'department', sortOrder = 'asc' } = filters;
     rows.sort((a, b) => {
       let cmp = 0;
-      if (sortBy === 'name')           cmp = a.fullName.localeCompare(b.fullName);
+      if (sortBy === 'name') cmp = a.fullName.localeCompare(b.fullName);
       else if (sortBy === 'department') cmp = a.department.localeCompare(b.department);
       else if (sortBy === 'totalDays') cmp = a.totalDays - b.totalDays;
       else if (sortBy === 'attendanceRate')
@@ -881,88 +954,94 @@ export class ReportsService {
       },
     });
 
-    let totalTarget   = 0, totalProduced = 0;
-    let totalRejected = 0, totalScrap    = 0;
-    let completed = 0, inProgress = 0, cancelled = 0;
+    let totalTarget = 0,
+      totalProduced = 0;
+    let totalRejected = 0,
+      totalScrap = 0;
+    let completed = 0,
+      inProgress = 0,
+      cancelled = 0;
 
     // Per-department aggregation
     type DeptAgg = { workOrders: number; produced: number; rejected: number; target: number };
     const deptAgg = new Map<string, DeptAgg>();
 
-    const rows: ProductionReportRow[] = workOrders.map(wo => {
-      let produced = 0, rejected = 0, scrap = 0;
+    const rows: ProductionReportRow[] = workOrders.map((wo) => {
+      let produced = 0,
+        rejected = 0,
+        scrap = 0;
       for (const o of wo.outputs) {
         produced += o.goodQty.toNumber();
         rejected += o.rejectedQty.toNumber();
-        scrap    += o.scrapQty.toNumber();
+        scrap += o.scrapQty.toNumber();
       }
       const target = wo.targetQuantity.toNumber();
-      const rate   = target > 0 ? ((produced / target) * 100).toFixed(1) + '%' : '0.0%';
+      const rate = target > 0 ? ((produced / target) * 100).toFixed(1) + '%' : '0.0%';
 
-      totalTarget   += target;
+      totalTarget += target;
       totalProduced += produced;
       totalRejected += rejected;
-      totalScrap    += scrap;
+      totalScrap += scrap;
 
-      if (wo.status === 'COMPLETED')   completed++;
+      if (wo.status === 'COMPLETED') completed++;
       else if (wo.status === 'IN_PROGRESS' || wo.status === 'RELEASED') inProgress++;
       else if (wo.status === 'CANCELLED') cancelled++;
 
       const deptKey = wo.departmentName ?? '—';
       const da = deptAgg.get(deptKey) ?? { workOrders: 0, produced: 0, rejected: 0, target: 0 };
       da.workOrders++;
-      da.produced  += produced;
-      da.rejected  += rejected;
-      da.target    += target;
+      da.produced += produced;
+      da.rejected += rejected;
+      da.target += target;
       deptAgg.set(deptKey, da);
 
       return {
         workOrderNumber: wo.workOrderNumber,
-        product:         wo.product,
-        department:      wo.departmentName ?? '—',
-        priority:        wo.priority,
-        status:          wo.status,
-        targetQty:       target.toFixed(3),
-        producedQty:     produced.toFixed(3),
-        rejectedQty:     rejected.toFixed(3),
-        scrapQty:        scrap.toFixed(3),
-        completionRate:  rate,
-        scheduledStart:  fmtDate(wo.scheduledStart),
-        scheduledEnd:    fmtDate(wo.scheduledEnd),
-        actualStart:     fmtDate(wo.actualStart),
-        actualEnd:       fmtDate(wo.actualEnd),
+        product: wo.product,
+        department: wo.departmentName ?? '—',
+        priority: wo.priority,
+        status: wo.status,
+        targetQty: target.toFixed(3),
+        producedQty: produced.toFixed(3),
+        rejectedQty: rejected.toFixed(3),
+        scrapQty: scrap.toFixed(3),
+        completionRate: rate,
+        scheduledStart: fmtDate(wo.scheduledStart),
+        scheduledEnd: fmtDate(wo.scheduledEnd),
+        actualStart: fmtDate(wo.actualStart),
+        actualEnd: fmtDate(wo.actualEnd),
       };
     });
 
-    const overallCompletionRate = totalTarget > 0
-      ? ((totalProduced / totalTarget) * 100).toFixed(1) + '%'
-      : '0.0%';
-    const rejectionRate = (totalProduced + totalRejected) > 0
-      ? ((totalRejected / (totalProduced + totalRejected)) * 100).toFixed(1) + '%'
-      : '0.0%';
+    const overallCompletionRate =
+      totalTarget > 0 ? ((totalProduced / totalTarget) * 100).toFixed(1) + '%' : '0.0%';
+    const rejectionRate =
+      totalProduced + totalRejected > 0
+        ? ((totalRejected / (totalProduced + totalRejected)) * 100).toFixed(1) + '%'
+        : '0.0%';
 
-    const byDepartment = Array.from(deptAgg.entries()).map(([department, da]) => ({
-      department,
-      workOrders: da.workOrders,
-      produced:   da.produced.toFixed(3),
-      rejected:   da.rejected.toFixed(3),
-      completionRate: da.target > 0
-        ? ((da.produced / da.target) * 100).toFixed(1) + '%'
-        : '0.0%',
-    })).sort((a, b) => b.workOrders - a.workOrders);
+    const byDepartment = Array.from(deptAgg.entries())
+      .map(([department, da]) => ({
+        department,
+        workOrders: da.workOrders,
+        produced: da.produced.toFixed(3),
+        rejected: da.rejected.toFixed(3),
+        completionRate: da.target > 0 ? ((da.produced / da.target) * 100).toFixed(1) + '%' : '0.0%',
+      }))
+      .sort((a, b) => b.workOrders - a.workOrders);
 
     return {
       generatedAt: new Date().toISOString(),
-      period:      this.buildPeriodLabel(filters),
+      period: this.buildPeriodLabel(filters),
       summary: {
-        totalWorkOrders:       workOrders.length,
+        totalWorkOrders: workOrders.length,
         completed,
         inProgress,
         cancelled,
-        totalTargetQty:        totalTarget.toFixed(3),
-        totalProducedQty:      totalProduced.toFixed(3),
-        totalRejectedQty:      totalRejected.toFixed(3),
-        totalScrapQty:         totalScrap.toFixed(3),
+        totalTargetQty: totalTarget.toFixed(3),
+        totalProducedQty: totalProduced.toFixed(3),
+        totalRejectedQty: totalRejected.toFixed(3),
+        totalScrapQty: totalScrap.toFixed(3),
         overallCompletionRate,
         rejectionRate,
         byDepartment,

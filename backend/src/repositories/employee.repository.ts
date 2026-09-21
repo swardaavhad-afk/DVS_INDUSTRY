@@ -376,23 +376,24 @@ export class EmployeeRepository implements IEmployeeRepository {
         by: ['departmentId'],
         where: { deletedAt: null, departmentId: { not: null } },
         _count: { id: true },
+        orderBy: { departmentId: 'asc' },
       }),
       prisma.employee.groupBy({
         by: ['employmentType'],
         where: { deletedAt: null },
         _count: { id: true },
+        orderBy: { employmentType: 'asc' },
       }),
       prisma.employee.groupBy({
         by: ['gender'],
         where: { deletedAt: null },
         _count: { id: true },
+        orderBy: { gender: 'asc' },
       }),
     ]);
 
     // Enrich department stats with names
-    const deptIds = byDeptRaw
-      .map((r) => r.departmentId)
-      .filter((id): id is number => id !== null);
+    const deptIds = byDeptRaw.map((r) => r.departmentId).filter((id): id is number => id !== null);
 
     const departments =
       deptIds.length > 0
@@ -409,17 +410,17 @@ export class EmployeeRepository implements IEmployeeRepository {
       .map((r) => ({
         departmentId: r.departmentId,
         name: deptNameMap.get(r.departmentId) ?? 'Unknown',
-        count: r._count.id,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
       }));
 
     const byEmploymentType = byTypeRaw.map((r) => ({
       type: r.employmentType as EmploymentType,
-      count: r._count.id,
+      count: (r._count as { id?: number } | undefined)?.id ?? 0,
     }));
 
     const byGender = byGenderRaw.map((r) => ({
       gender: r.gender as Gender | null,
-      count: r._count.id,
+      count: (r._count as { id?: number } | undefined)?.id ?? 0,
     }));
 
     return {

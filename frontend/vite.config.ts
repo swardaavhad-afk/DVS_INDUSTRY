@@ -50,4 +50,17 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          charts: ['recharts'],
+          vendor: ['axios', 'date-fns', 'lucide-react', 'sonner'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 })

@@ -21,10 +21,7 @@ const passwordField = z
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>]/,
-    'Password must contain at least one special character',
-  );
+  .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character');
 
 const phoneField = z
   .string()
@@ -44,10 +41,7 @@ export const registerSchema = z.object({
   email: emailField,
   password: passwordField,
   phone: phoneField,
-  roleId: z
-    .number()
-    .int()
-    .positive('roleId must be a positive integer'),
+  roleId: z.number().int().positive('roleId must be a positive integer'),
 });
 
 export const loginSchema = z.object({
@@ -67,12 +61,7 @@ export const changePasswordSchema = z
   });
 
 export const updateProfileSchema = z.object({
-  fullName: z
-    .string()
-    .min(2, 'Full name must be at least 2 characters')
-    .max(100)
-    .trim()
-    .optional(),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100).trim().optional(),
   phone: phoneField,
 });
 

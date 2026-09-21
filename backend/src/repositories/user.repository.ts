@@ -1,9 +1,4 @@
-import type {
-  IUserRepository,
-  UserDto,
-  CreateUserData,
-  UpdateUserData,
-} from '../interfaces';
+import type { IUserRepository, UserDto, CreateUserData, UpdateUserData } from '../interfaces';
 import { prisma } from '../lib/prismaClient';
 
 // Fields returned on every user query — excludes password by default
@@ -31,9 +26,7 @@ export class UserRepository implements IUserRepository {
   }
 
   /** Returns the user including their hashed password — ONLY used for auth. */
-  async findByEmail(
-    email: string,
-  ): Promise<(UserDto & { password: string }) | null> {
+  async findByEmail(email: string): Promise<(UserDto & { password: string }) | null> {
     const user = await prisma.user.findUnique({
       where: { email },
       select: { ...userSelect, password: true },
@@ -41,9 +34,7 @@ export class UserRepository implements IUserRepository {
     return user ?? null;
   }
 
-  async findAll(
-    filters: { isActive?: boolean; roleId?: number } = {},
-  ): Promise<UserDto[]> {
+  async findAll(filters: { isActive?: boolean; roleId?: number } = {}): Promise<UserDto[]> {
     return prisma.user.findMany({
       where: filters,
       select: userSelect,

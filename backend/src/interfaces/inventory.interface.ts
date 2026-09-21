@@ -3,12 +3,7 @@
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
-export type StockTransactionType =
-  | 'IN'
-  | 'OUT'
-  | 'ADJUSTMENT'
-  | 'SCRAP'
-  | 'RETURN';
+export type StockTransactionType = 'IN' | 'OUT' | 'ADJUSTMENT' | 'SCRAP' | 'RETURN';
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -20,7 +15,7 @@ export interface MaterialDto {
   unit: string;
   category: string | null;
   location: string | null;
-  currentStock: string;      // Decimal → string
+  currentStock: string; // Decimal → string
   minStockLevel: string;
   maxStockLevel: string | null;
   costPerUnit: string | null;
@@ -29,7 +24,7 @@ export interface MaterialDto {
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  isLowStock?: boolean;      // computed: currentStock <= minStockLevel
+  isLowStock?: boolean; // computed: currentStock <= minStockLevel
 }
 
 export interface StockTransactionDto {
@@ -90,10 +85,10 @@ export interface InventoryStatistics {
   activeMaterials: number;
   lowStockCount: number;
   outOfStockCount: number;
-  totalStockValue: string;           // sum of currentStock * costPerUnit
+  totalStockValue: string; // sum of currentStock * costPerUnit
   totalTransactionsToday: number;
-  totalScrapThisMonth: string;       // total kg / units scrapped
-  scrapValueThisMonth: string;       // estimated ₹ recovery
+  totalScrapThisMonth: string; // total kg / units scrapped
+  scrapValueThisMonth: string; // estimated ₹ recovery
   byCategory: Array<{ category: string; count: number; stockValue: string }>;
   recentTransactions: StockTransactionDto[];
   lowStockMaterials: MaterialDto[];

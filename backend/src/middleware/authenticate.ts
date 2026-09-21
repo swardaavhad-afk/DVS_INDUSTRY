@@ -14,11 +14,7 @@ import { UnauthorizedError } from '../errors';
  * Usage:
  *   router.get('/me', authenticate, handler)
  */
-export function authenticate(
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction,
-): void {
+export function authenticate(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
   const authHeader = req.headers['authorization'];
 
   if (authHeader === undefined || !authHeader.startsWith('Bearer ')) {

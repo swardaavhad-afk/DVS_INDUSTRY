@@ -1,63 +1,122 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 import type {
-  SupplierDto, ClientDto,
-  ClientOrderDto, PurchaseOrderDto,
-  SupplierListResult, ClientListResult,
-  ClientOrderListResult, PurchaseOrderListResult,
+  SupplierDto,
+  ClientDto,
+  ClientOrderDto,
+  PurchaseOrderDto,
+  SupplierListResult,
+  ClientListResult,
+  ClientOrderListResult,
+  PurchaseOrderListResult,
   OrdersStatistics,
-  SupplierFilters, ClientFilters,
-  ClientOrderFilters, PurchaseOrderFilters,
-  CreateSupplierData, UpdateSupplierData,
-  CreateClientData, UpdateClientData,
-  CreateClientOrderData, UpdateClientOrderData,
-  CreatePurchaseOrderData, UpdatePurchaseOrderData,
-  ClientOrderStatus, PurchaseOrderStatus,
+  SupplierFilters,
+  ClientFilters,
+  ClientOrderFilters,
+  PurchaseOrderFilters,
+  CreateSupplierData,
+  UpdateSupplierData,
+  CreateClientData,
+  UpdateClientData,
+  CreateClientOrderData,
+  UpdateClientOrderData,
+  CreatePurchaseOrderData,
+  UpdatePurchaseOrderData,
+  ClientOrderStatus,
+  PurchaseOrderStatus,
 } from '../interfaces';
 
 // ── Select shapes ─────────────────────────────────────────────────────────────
 
 const supplierSelect = {
-  id: true, name: true, code: true, contactName: true,
-  email: true, phone: true, address: true, city: true,
-  state: true, country: true, gstin: true, rating: true,
-  leadTimeDays: true, reliability: true, materials: true,
-  isActive: true, deletedAt: true, createdAt: true, updatedAt: true,
+  id: true,
+  name: true,
+  code: true,
+  contactName: true,
+  email: true,
+  phone: true,
+  address: true,
+  city: true,
+  state: true,
+  country: true,
+  gstin: true,
+  rating: true,
+  leadTimeDays: true,
+  reliability: true,
+  materials: true,
+  isActive: true,
+  deletedAt: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
 const clientSelect = {
-  id: true, name: true, code: true, contactName: true,
-  email: true, phone: true, address: true, city: true,
-  state: true, country: true, gstin: true,
-  isActive: true, deletedAt: true, createdAt: true, updatedAt: true,
+  id: true,
+  name: true,
+  code: true,
+  contactName: true,
+  email: true,
+  phone: true,
+  address: true,
+  city: true,
+  state: true,
+  country: true,
+  gstin: true,
+  isActive: true,
+  deletedAt: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
 const clientOrderSelect = {
-  id: true, orderNumber: true, clientId: true,
-  product: true, quantity: true, unit: true,
-  value: true, currency: true, orderDate: true,
-  requiredDate: true, dispatchDate: true, deliveryDate: true,
-  status: true, notes: true, dispatchNote: true,
-  challanNumber: true, invoiceNumber: true,
-  createdById: true, createdAt: true, updatedAt: true,
+  id: true,
+  orderNumber: true,
+  clientId: true,
+  product: true,
+  quantity: true,
+  unit: true,
+  value: true,
+  currency: true,
+  orderDate: true,
+  requiredDate: true,
+  dispatchDate: true,
+  deliveryDate: true,
+  status: true,
+  notes: true,
+  dispatchNote: true,
+  challanNumber: true,
+  invoiceNumber: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
   client: { select: { name: true } },
 } as const;
 
 const purchaseOrderSelect = {
-  id: true, poNumber: true, supplierId: true,
-  material: true, quantity: true, unit: true,
-  totalCost: true, currency: true, orderDate: true,
-  expectedDelivery: true, actualDelivery: true,
-  status: true, notes: true,
-  createdById: true, createdAt: true, updatedAt: true,
+  id: true,
+  poNumber: true,
+  supplierId: true,
+  material: true,
+  quantity: true,
+  unit: true,
+  totalCost: true,
+  currency: true,
+  orderDate: true,
+  expectedDelivery: true,
+  actualDelivery: true,
+  status: true,
+  notes: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
   supplier: { select: { name: true } },
 } as const;
 
 // ── Converters ────────────────────────────────────────────────────────────────
 
-type PrismaSupplier     = Prisma.SupplierGetPayload<{ select: typeof supplierSelect }>;
-type PrismaClient       = Prisma.ClientGetPayload<{ select: typeof clientSelect }>;
-type PrismaClientOrder  = Prisma.ClientOrderGetPayload<{ select: typeof clientOrderSelect }>;
+type PrismaSupplier = Prisma.SupplierGetPayload<{ select: typeof supplierSelect }>;
+type PrismaClient = Prisma.ClientGetPayload<{ select: typeof clientSelect }>;
+type PrismaClientOrder = Prisma.ClientOrderGetPayload<{ select: typeof clientOrderSelect }>;
 type PrismaPurchaseOrder = Prisma.PurchaseOrderGetPayload<{ select: typeof purchaseOrderSelect }>;
 
 function toSupplierDto(r: PrismaSupplier): SupplierDto {
@@ -70,30 +129,49 @@ function toClientDto(r: PrismaClient): ClientDto {
 
 function toClientOrderDto(r: PrismaClientOrder): ClientOrderDto {
   return {
-    id: r.id, orderNumber: r.orderNumber,
-    clientId: r.clientId, clientName: r.client.name,
-    product: r.product, quantity: r.quantity, unit: r.unit,
-    value: r.value?.toString() ?? null, currency: r.currency,
-    orderDate: r.orderDate, requiredDate: r.requiredDate,
-    dispatchDate: r.dispatchDate, deliveryDate: r.deliveryDate,
+    id: r.id,
+    orderNumber: r.orderNumber,
+    clientId: r.clientId,
+    clientName: r.client.name,
+    product: r.product,
+    quantity: r.quantity,
+    unit: r.unit,
+    value: r.value?.toString() ?? null,
+    currency: r.currency,
+    orderDate: r.orderDate,
+    requiredDate: r.requiredDate,
+    dispatchDate: r.dispatchDate,
+    deliveryDate: r.deliveryDate,
     status: r.status as ClientOrderStatus,
-    notes: r.notes, dispatchNote: r.dispatchNote,
-    challanNumber: r.challanNumber, invoiceNumber: r.invoiceNumber,
-    createdById: r.createdById, createdAt: r.createdAt, updatedAt: r.updatedAt,
+    notes: r.notes,
+    dispatchNote: r.dispatchNote,
+    challanNumber: r.challanNumber,
+    invoiceNumber: r.invoiceNumber,
+    createdById: r.createdById,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   };
 }
 
 function toPurchaseOrderDto(r: PrismaPurchaseOrder): PurchaseOrderDto {
   return {
-    id: r.id, poNumber: r.poNumber,
-    supplierId: r.supplierId, supplierName: r.supplier.name,
-    material: r.material, quantity: r.quantity, unit: r.unit,
-    totalCost: r.totalCost?.toString() ?? null, currency: r.currency,
-    orderDate: r.orderDate, expectedDelivery: r.expectedDelivery,
+    id: r.id,
+    poNumber: r.poNumber,
+    supplierId: r.supplierId,
+    supplierName: r.supplier.name,
+    material: r.material,
+    quantity: r.quantity,
+    unit: r.unit,
+    totalCost: r.totalCost?.toString() ?? null,
+    currency: r.currency,
+    orderDate: r.orderDate,
+    expectedDelivery: r.expectedDelivery,
     actualDelivery: r.actualDelivery,
     status: r.status as PurchaseOrderStatus,
-    notes: r.notes, createdById: r.createdById,
-    createdAt: r.createdAt, updatedAt: r.updatedAt,
+    notes: r.notes,
+    createdById: r.createdById,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   };
 }
 
@@ -101,7 +179,8 @@ function toPurchaseOrderDto(r: PrismaPurchaseOrder): PurchaseOrderDto {
 
 async function nextOrderNumber(): Promise<string> {
   const last = await prisma.clientOrder.findFirst({
-    orderBy: { id: 'desc' }, select: { orderNumber: true },
+    orderBy: { id: 'desc' },
+    select: { orderNumber: true },
   });
   const num = last ? parseInt(last.orderNumber.replace('ORD-', ''), 10) + 1 : 2841;
   return `ORD-${num}`;
@@ -109,7 +188,8 @@ async function nextOrderNumber(): Promise<string> {
 
 async function nextPONumber(): Promise<string> {
   const last = await prisma.purchaseOrder.findFirst({
-    orderBy: { id: 'desc' }, select: { poNumber: true },
+    orderBy: { id: 'desc' },
+    select: { poNumber: true },
   });
   const num = last ? parseInt(last.poNumber.replace('PO-', ''), 10) + 1 : 2847;
   return `PO-${num}`;
@@ -118,17 +198,20 @@ async function nextPONumber(): Promise<string> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class OrdersRepository {
-
   // ══ SUPPLIERS ════════════════════════════════════════════════════════════════
 
   async createSupplier(data: CreateSupplierData): Promise<SupplierDto> {
     const raw = await prisma.supplier.create({
       data: {
-        name: data.name, code: data.code,
+        name: data.name,
+        code: data.code,
         contactName: data.contactName ?? null,
-        email: data.email ?? null, phone: data.phone ?? null,
-        address: data.address ?? null, city: data.city ?? null,
-        state: data.state ?? null, country: data.country ?? 'India',
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        address: data.address ?? null,
+        city: data.city ?? null,
+        state: data.state ?? null,
+        country: data.country ?? 'India',
         gstin: data.gstin ?? null,
         rating: data.rating ?? null,
         leadTimeDays: data.leadTimeDays ?? null,
@@ -178,10 +261,21 @@ export class OrdersRepository {
   }
 
   async findAllSuppliers(f: SupplierFilters): Promise<SupplierListResult> {
-    const { search, status = 'active', sortBy = 'name', sortOrder = 'asc', page = 1, pageSize = 20 } = f;
+    const {
+      search,
+      status = 'active',
+      sortBy = 'name',
+      sortOrder = 'asc',
+      page = 1,
+      pageSize = 20,
+    } = f;
     const where: Prisma.SupplierWhereInput = {};
-    if (status === 'active') { where.isActive = true; where.deletedAt = null; }
-    else if (status === 'inactive') { where.isActive = false; }
+    if (status === 'active') {
+      where.isActive = true;
+      where.deletedAt = null;
+    } else if (status === 'inactive') {
+      where.isActive = false;
+    }
     if (search?.trim()) {
       where.OR = [
         { name: { contains: search.trim(), mode: 'insensitive' } },
@@ -191,7 +285,13 @@ export class OrdersRepository {
     }
     const orderBy: Prisma.SupplierOrderByWithRelationInput = { [sortBy]: sortOrder };
     const [data, total] = await prisma.$transaction([
-      prisma.supplier.findMany({ where, select: supplierSelect, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.supplier.findMany({
+        where,
+        select: supplierSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.supplier.count({ where }),
     ]);
     return { data: data.map(toSupplierDto), total };
@@ -199,14 +299,18 @@ export class OrdersRepository {
 
   async softDeleteSupplier(id: number): Promise<SupplierDto> {
     const raw = await prisma.supplier.update({
-      where: { id }, data: { isActive: false, deletedAt: new Date() }, select: supplierSelect,
+      where: { id },
+      data: { isActive: false, deletedAt: new Date() },
+      select: supplierSelect,
     });
     return toSupplierDto(raw);
   }
 
   async restoreSupplier(id: number): Promise<SupplierDto> {
     const raw = await prisma.supplier.update({
-      where: { id }, data: { isActive: true, deletedAt: null }, select: supplierSelect,
+      where: { id },
+      data: { isActive: true, deletedAt: null },
+      select: supplierSelect,
     });
     return toSupplierDto(raw);
   }
@@ -216,11 +320,15 @@ export class OrdersRepository {
   async createClient(data: CreateClientData): Promise<ClientDto> {
     const raw = await prisma.client.create({
       data: {
-        name: data.name, code: data.code,
+        name: data.name,
+        code: data.code,
         contactName: data.contactName ?? null,
-        email: data.email ?? null, phone: data.phone ?? null,
-        address: data.address ?? null, city: data.city ?? null,
-        state: data.state ?? null, country: data.country ?? 'India',
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        address: data.address ?? null,
+        city: data.city ?? null,
+        state: data.state ?? null,
+        country: data.country ?? 'India',
         gstin: data.gstin ?? null,
       },
       select: clientSelect,
@@ -250,7 +358,8 @@ export class OrdersRepository {
 
   async findClientByName(name: string): Promise<ClientDto | null> {
     const raw = await prisma.client.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } }, select: clientSelect,
+      where: { name: { equals: name, mode: 'insensitive' } },
+      select: clientSelect,
     });
     return raw ? toClientDto(raw) : null;
   }
@@ -261,10 +370,21 @@ export class OrdersRepository {
   }
 
   async findAllClients(f: ClientFilters): Promise<ClientListResult> {
-    const { search, status = 'active', sortBy = 'name', sortOrder = 'asc', page = 1, pageSize = 20 } = f;
+    const {
+      search,
+      status = 'active',
+      sortBy = 'name',
+      sortOrder = 'asc',
+      page = 1,
+      pageSize = 20,
+    } = f;
     const where: Prisma.ClientWhereInput = {};
-    if (status === 'active') { where.isActive = true; where.deletedAt = null; }
-    else if (status === 'inactive') { where.isActive = false; }
+    if (status === 'active') {
+      where.isActive = true;
+      where.deletedAt = null;
+    } else if (status === 'inactive') {
+      where.isActive = false;
+    }
     if (search?.trim()) {
       where.OR = [
         { name: { contains: search.trim(), mode: 'insensitive' } },
@@ -273,7 +393,13 @@ export class OrdersRepository {
     }
     const orderBy: Prisma.ClientOrderByWithRelationInput = { [sortBy]: sortOrder };
     const [data, total] = await prisma.$transaction([
-      prisma.client.findMany({ where, select: clientSelect, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.client.findMany({
+        where,
+        select: clientSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.client.count({ where }),
     ]);
     return { data: data.map(toClientDto), total };
@@ -281,14 +407,18 @@ export class OrdersRepository {
 
   async softDeleteClient(id: number): Promise<ClientDto> {
     const raw = await prisma.client.update({
-      where: { id }, data: { isActive: false, deletedAt: new Date() }, select: clientSelect,
+      where: { id },
+      data: { isActive: false, deletedAt: new Date() },
+      select: clientSelect,
     });
     return toClientDto(raw);
   }
 
   async restoreClient(id: number): Promise<ClientDto> {
     const raw = await prisma.client.update({
-      where: { id }, data: { isActive: true, deletedAt: null }, select: clientSelect,
+      where: { id },
+      data: { isActive: true, deletedAt: null },
+      select: clientSelect,
     });
     return toClientDto(raw);
   }
@@ -323,7 +453,11 @@ export class OrdersRepository {
     if (data.value !== undefined) up.value = data.value;
     if (data.requiredDate !== undefined) up.requiredDate = data.requiredDate;
     if (data.notes !== undefined) up.notes = data.notes;
-    const raw = await prisma.clientOrder.update({ where: { id }, data: up, select: clientOrderSelect });
+    const raw = await prisma.clientOrder.update({
+      where: { id },
+      data: up,
+      select: clientOrderSelect,
+    });
     return toClientOrderDto(raw);
   }
 
@@ -333,7 +467,17 @@ export class OrdersRepository {
   }
 
   async findAllClientOrders(f: ClientOrderFilters): Promise<ClientOrderListResult> {
-    const { clientId, status = 'all', search, fromDate, toDate, sortBy = 'orderDate', sortOrder = 'desc', page = 1, pageSize = 20 } = f;
+    const {
+      clientId,
+      status = 'all',
+      search,
+      fromDate,
+      toDate,
+      sortBy = 'orderDate',
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
+    } = f;
     const where: Prisma.ClientOrderWhereInput = {};
     if (clientId !== undefined) where.clientId = clientId;
     if (status !== 'all') where.status = status as ClientOrderStatus;
@@ -351,7 +495,13 @@ export class OrdersRepository {
     }
     const orderBy: Prisma.ClientOrderOrderByWithRelationInput = { [sortBy]: sortOrder };
     const [data, total] = await prisma.$transaction([
-      prisma.clientOrder.findMany({ where, select: clientOrderSelect, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.clientOrder.findMany({
+        where,
+        select: clientOrderSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.clientOrder.count({ where }),
     ]);
     return { data: data.map(toClientOrderDto), total };
@@ -360,7 +510,13 @@ export class OrdersRepository {
   async updateClientOrderStatus(
     id: number,
     status: ClientOrderStatus,
-    extra?: Partial<{ dispatchDate: Date; deliveryDate: Date; dispatchNote: string | null; challanNumber: string | null; invoiceNumber: string | null }>,
+    extra?: Partial<{
+      dispatchDate: Date;
+      deliveryDate: Date;
+      dispatchNote: string | null;
+      challanNumber: string | null;
+      invoiceNumber: string | null;
+    }>,
   ): Promise<ClientOrderDto> {
     const raw = await prisma.clientOrder.update({
       where: { id },
@@ -400,17 +556,34 @@ export class OrdersRepository {
     if (data.totalCost !== undefined) up.totalCost = data.totalCost;
     if (data.expectedDelivery !== undefined) up.expectedDelivery = data.expectedDelivery;
     if (data.notes !== undefined) up.notes = data.notes;
-    const raw = await prisma.purchaseOrder.update({ where: { id }, data: up, select: purchaseOrderSelect });
+    const raw = await prisma.purchaseOrder.update({
+      where: { id },
+      data: up,
+      select: purchaseOrderSelect,
+    });
     return toPurchaseOrderDto(raw);
   }
 
   async findPurchaseOrderById(id: number): Promise<PurchaseOrderDto | null> {
-    const raw = await prisma.purchaseOrder.findUnique({ where: { id }, select: purchaseOrderSelect });
+    const raw = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      select: purchaseOrderSelect,
+    });
     return raw ? toPurchaseOrderDto(raw) : null;
   }
 
   async findAllPurchaseOrders(f: PurchaseOrderFilters): Promise<PurchaseOrderListResult> {
-    const { supplierId, status = 'all', search, fromDate, toDate, sortBy = 'orderDate', sortOrder = 'desc', page = 1, pageSize = 20 } = f;
+    const {
+      supplierId,
+      status = 'all',
+      search,
+      fromDate,
+      toDate,
+      sortBy = 'orderDate',
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
+    } = f;
     const where: Prisma.PurchaseOrderWhereInput = {};
     if (supplierId !== undefined) where.supplierId = supplierId;
     if (status !== 'all') where.status = status as PurchaseOrderStatus;
@@ -428,7 +601,13 @@ export class OrdersRepository {
     }
     const orderBy: Prisma.PurchaseOrderOrderByWithRelationInput = { [sortBy]: sortOrder };
     const [data, total] = await prisma.$transaction([
-      prisma.purchaseOrder.findMany({ where, select: purchaseOrderSelect, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.purchaseOrder.findMany({
+        where,
+        select: purchaseOrderSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.purchaseOrder.count({ where }),
     ]);
     return { data: data.map(toPurchaseOrderDto), total };
@@ -451,11 +630,25 @@ export class OrdersRepository {
 
   async getStatistics(): Promise<OrdersStatistics> {
     const [
-      coTotal, coPending, coApproved, coInProd, coDispatched, coDelivered, coCancelled,
-      poTotal, poPending, poConfirmed, poInTransit, poDelivered, poCancelled,
-      activeSuppliers, activeClients,
-      coValueRaw, poValueRaw,
-      deliveredCount, totalCount,
+      coTotal,
+      coPending,
+      coApproved,
+      coInProd,
+      coDispatched,
+      coDelivered,
+      coCancelled,
+      poTotal,
+      poPending,
+      poConfirmed,
+      poInTransit,
+      poDelivered,
+      poCancelled,
+      activeSuppliers,
+      activeClients,
+      coValueRaw,
+      poValueRaw,
+      deliveredCount,
+      totalCount,
     ] = await prisma.$transaction([
       prisma.clientOrder.count(),
       prisma.clientOrder.count({ where: { status: 'PENDING' } }),
@@ -478,20 +671,28 @@ export class OrdersRepository {
       prisma.clientOrder.count({ where: { status: { not: 'CANCELLED' } } }),
     ]);
 
-    const totalValue    = coValueRaw._sum.value?.toNumber() ?? 0;
-    const totalCost     = poValueRaw._sum.totalCost?.toNumber() ?? 0;
-    const fulfillment   = totalCount > 0 ? ((deliveredCount / totalCount) * 100).toFixed(1) : '0.0';
+    const totalValue = coValueRaw._sum.value?.toNumber() ?? 0;
+    const totalCost = poValueRaw._sum.totalCost?.toNumber() ?? 0;
+    const fulfillment = totalCount > 0 ? ((deliveredCount / totalCount) * 100).toFixed(1) : '0.0';
 
     return {
       clientOrders: {
-        total: coTotal, pending: coPending, approved: coApproved,
-        inProduction: coInProd, dispatched: coDispatched,
-        delivered: coDelivered, cancelled: coCancelled,
+        total: coTotal,
+        pending: coPending,
+        approved: coApproved,
+        inProduction: coInProd,
+        dispatched: coDispatched,
+        delivered: coDelivered,
+        cancelled: coCancelled,
         totalValue: totalValue.toFixed(2),
       },
       purchaseOrders: {
-        total: poTotal, pending: poPending, confirmed: poConfirmed,
-        inTransit: poInTransit, delivered: poDelivered, cancelled: poCancelled,
+        total: poTotal,
+        pending: poPending,
+        confirmed: poConfirmed,
+        inTransit: poInTransit,
+        delivered: poDelivered,
+        cancelled: poCancelled,
         totalCost: totalCost.toFixed(2),
       },
       fulfillmentRate: `${fulfillment}%`,

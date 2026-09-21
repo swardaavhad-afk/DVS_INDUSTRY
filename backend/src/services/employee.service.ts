@@ -8,11 +8,7 @@ import type {
   CreateEmployeeData,
   UpdateEmployeeData,
 } from '../interfaces';
-import {
-  ConflictError,
-  NotFoundError,
-  BadRequestError,
-} from '../errors';
+import { ConflictError, NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**
@@ -43,18 +39,14 @@ export class EmployeeService {
     // Rule 1 — unique employeeCode
     const codeExists = await this.repo.findByEmployeeCode(data.employeeCode);
     if (codeExists !== null) {
-      throw new ConflictError(
-        `Employee with code "${data.employeeCode}" already exists`,
-      );
+      throw new ConflictError(`Employee with code "${data.employeeCode}" already exists`);
     }
 
     // Rule 2 — unique email
     if (data.email !== null && data.email !== undefined) {
       const emailExists = await this.repo.findByEmail(data.email);
       if (emailExists !== null) {
-        throw new ConflictError(
-          `Employee with email "${data.email}" already exists`,
-        );
+        throw new ConflictError(`Employee with email "${data.email}" already exists`);
       }
     }
 
@@ -92,22 +84,14 @@ export class EmployeeService {
     const existing = await this.getByIdOrThrow(id);
 
     if (existing.deletedAt !== null) {
-      throw new BadRequestError(
-        'Cannot update a deleted employee. Restore them first.',
-      );
+      throw new BadRequestError('Cannot update a deleted employee. Restore them first.');
     }
 
     // Unique email check (skip if unchanged)
-    if (
-      data.email !== undefined &&
-      data.email !== null &&
-      data.email !== existing.email
-    ) {
+    if (data.email !== undefined && data.email !== null && data.email !== existing.email) {
       const emailConflict = await this.repo.findByEmail(data.email);
       if (emailConflict !== null && emailConflict.id !== id) {
-        throw new ConflictError(
-          `Employee with email "${data.email}" already exists`,
-        );
+        throw new ConflictError(`Employee with email "${data.email}" already exists`);
       }
     }
 
@@ -148,20 +132,12 @@ export class EmployeeService {
     const existing = await this.getByIdOrThrow(id);
 
     if (existing.deletedAt === null) {
-      throw new BadRequestError(
-        'Employee is not deleted — nothing to restore',
-      );
+      throw new BadRequestError('Employee is not deleted — nothing to restore');
     }
 
     // Rule 9 — check code conflict with active employees
-    const codeConflict = await this.repo.findByEmployeeCode(
-      existing.employeeCode,
-    );
-    if (
-      codeConflict !== null &&
-      codeConflict.id !== id &&
-      codeConflict.deletedAt === null
-    ) {
+    const codeConflict = await this.repo.findByEmployeeCode(existing.employeeCode);
+    if (codeConflict !== null && codeConflict.id !== id && codeConflict.deletedAt === null) {
       throw new ConflictError(
         `Cannot restore: another active employee already uses code "${existing.employeeCode}"`,
       );
@@ -170,11 +146,7 @@ export class EmployeeService {
     // Email conflict check
     if (existing.email !== null) {
       const emailConflict = await this.repo.findByEmail(existing.email);
-      if (
-        emailConflict !== null &&
-        emailConflict.id !== id &&
-        emailConflict.deletedAt === null
-      ) {
+      if (emailConflict !== null && emailConflict.id !== id && emailConflict.deletedAt === null) {
         throw new ConflictError(
           `Cannot restore: another active employee already uses email "${existing.email}"`,
         );
@@ -192,9 +164,7 @@ export class EmployeeService {
     const existing = await this.getByIdOrThrow(id);
 
     if (existing.deletedAt !== null) {
-      throw new BadRequestError(
-        'Cannot activate a deleted employee. Restore them first.',
-      );
+      throw new BadRequestError('Cannot activate a deleted employee. Restore them first.');
     }
 
     if (existing.status === 'ACTIVE') {
@@ -212,9 +182,7 @@ export class EmployeeService {
     const existing = await this.getByIdOrThrow(id);
 
     if (existing.deletedAt !== null) {
-      throw new BadRequestError(
-        'Cannot deactivate a deleted employee.',
-      );
+      throw new BadRequestError('Cannot deactivate a deleted employee.');
     }
 
     if (existing.status === 'INACTIVE') {
@@ -228,10 +196,7 @@ export class EmployeeService {
 
   // ── Assign Department ─────────────────────────────────────────────────────
 
-  async assignDepartment(
-    id: number,
-    departmentId: number | null,
-  ): Promise<EmployeeDto> {
+  async assignDepartment(id: number, departmentId: number | null): Promise<EmployeeDto> {
     await this.getByIdOrThrow(id);
 
     if (departmentId !== null) {
@@ -245,10 +210,7 @@ export class EmployeeService {
 
   // ── Assign Manager ────────────────────────────────────────────────────────
 
-  async assignManager(
-    id: number,
-    managerId: number | null,
-  ): Promise<EmployeeDto> {
+  async assignManager(id: number, managerId: number | null): Promise<EmployeeDto> {
     await this.getByIdOrThrow(id);
 
     if (managerId !== null) {
@@ -313,9 +275,7 @@ export class EmployeeService {
       select: { id: true },
     });
     if (dept === null) {
-      throw new NotFoundError(
-        `Department with id ${departmentId} not found or has been deleted`,
-      );
+      throw new NotFoundError(`Department with id ${departmentId} not found or has been deleted`);
     }
   }
 
@@ -325,9 +285,7 @@ export class EmployeeService {
       select: { id: true },
     });
     if (manager === null) {
-      throw new NotFoundError(
-        `Manager (employee) with id ${managerId} not found`,
-      );
+      throw new NotFoundError(`Manager (employee) with id ${managerId} not found`);
     }
   }
 
@@ -347,9 +305,7 @@ export class EmployeeService {
       select: { id: true },
     });
     if (user === null) {
-      throw new NotFoundError(
-        `User with id ${userId} not found. Create the user account first.`,
-      );
+      throw new NotFoundError(`User with id ${userId} not found. Create the user account first.`);
     }
   }
 }

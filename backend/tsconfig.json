@@ -7,7 +7,7 @@
     // ── Module system ────────────────────────────────────────────
     // package.json uses "type": "commonjs", so keep CommonJS here.
     "module": "commonjs",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "target": "es2022",
     "lib": ["es2022"],
 

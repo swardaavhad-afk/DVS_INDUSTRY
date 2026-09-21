@@ -15,10 +15,7 @@ import type {
   ProductionTrendEntry,
   WorkOrderStatus,
 } from '../interfaces';
-import {
-  NotFoundError,
-  BadRequestError,
-} from '../errors';
+import { NotFoundError, BadRequestError } from '../errors';
 import { logger } from '../logger';
 
 /**
@@ -41,12 +38,12 @@ import { logger } from '../logger';
 
 // Valid forward transitions
 const ALLOWED_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  DRAFT:       ['RELEASED', 'CANCELLED'],
-  RELEASED:    ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
+  DRAFT: ['RELEASED', 'CANCELLED'],
+  RELEASED: ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
   IN_PROGRESS: ['ON_HOLD', 'COMPLETED', 'CANCELLED'],
-  ON_HOLD:     ['RELEASED', 'IN_PROGRESS', 'CANCELLED'],
-  COMPLETED:   [],
-  CANCELLED:   [],
+  ON_HOLD: ['RELEASED', 'IN_PROGRESS', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
 };
 
 export class ProductionService {
@@ -73,7 +70,7 @@ export class ProductionService {
       if (!allowed.includes(data.status)) {
         throw new BadRequestError(
           `Cannot transition work order from ${existing.status} to ${data.status}. ` +
-          `Allowed: ${allowed.join(', ') || 'none'}`,
+            `Allowed: ${allowed.join(', ') || 'none'}`,
         );
       }
 
@@ -83,7 +80,11 @@ export class ProductionService {
       }
 
       // Rule 7 — auto-set actualStart on IN_PROGRESS
-      if (data.status === 'IN_PROGRESS' && !existing.actualStart && data.actualStart === undefined) {
+      if (
+        data.status === 'IN_PROGRESS' &&
+        !existing.actualStart &&
+        data.actualStart === undefined
+      ) {
         data.actualStart = new Date();
       }
     }
@@ -133,21 +134,24 @@ export class ProductionService {
     return this.updateWorkOrder(id, {
       status,
       ...(actualStart !== undefined && { actualStart }),
-      ...(actualEnd   !== undefined && { actualEnd }),
-      ...(notes       !== undefined && { notes }),
+      ...(actualEnd !== undefined && { actualEnd }),
+      ...(notes !== undefined && { notes }),
     });
   }
 
   // ══ OUTPUTS ══════════════════════════════════════════════════════════════
 
-  async addOutput(workOrderId: number, data: Omit<CreateOutputData, 'workOrderId'>): Promise<WorkOrderOutputDto> {
+  async addOutput(
+    workOrderId: number,
+    data: Omit<CreateOutputData, 'workOrderId'>,
+  ): Promise<WorkOrderOutputDto> {
     const wo = await this.getWorkOrderOrThrow(workOrderId);
 
     // Rule 8 — only RELEASED or IN_PROGRESS can accept output
     if (wo.status !== 'RELEASED' && wo.status !== 'IN_PROGRESS') {
       throw new BadRequestError(
         `Cannot record output for a work order with status "${wo.status}". ` +
-        'Work order must be RELEASED or IN_PROGRESS.',
+          'Work order must be RELEASED or IN_PROGRESS.',
       );
     }
 
@@ -166,9 +170,7 @@ export class ProductionService {
 
     // Rule 9 — ownership check
     if (existing.workOrderId !== workOrderId) {
-      throw new BadRequestError(
-        `Output ${outputId} does not belong to work order ${workOrderId}`,
-      );
+      throw new BadRequestError(`Output ${outputId} does not belong to work order ${workOrderId}`);
     }
 
     const output = await this.repo.updateOutput(outputId, data);
@@ -181,9 +183,7 @@ export class ProductionService {
     const existing = await this.getOutputOrThrow(outputId);
 
     if (existing.workOrderId !== workOrderId) {
-      throw new BadRequestError(
-        `Output ${outputId} does not belong to work order ${workOrderId}`,
-      );
+      throw new BadRequestError(`Output ${outputId} does not belong to work order ${workOrderId}`);
     }
 
     await this.repo.deleteOutput(outputId);
@@ -200,18 +200,11 @@ export class ProductionService {
 
   // ══ KPIs & TREND ═════════════════════════════════════════════════════════
 
-  async getKPIs(
-    departmentId?: number,
-    fromDate?: Date,
-    toDate?: Date,
-  ): Promise<ProductionKPIs> {
+  async getKPIs(departmentId?: number, fromDate?: Date, toDate?: Date): Promise<ProductionKPIs> {
     return this.repo.getKPIs(departmentId, fromDate, toDate);
   }
 
-  async getProductionTrend(
-    days = 7,
-    departmentId?: number,
-  ): Promise<ProductionTrendEntry[]> {
+  async getProductionTrend(days = 7, departmentId?: number): Promise<ProductionTrendEntry[]> {
     return this.repo.getProductionTrend(days, departmentId);
   }
 

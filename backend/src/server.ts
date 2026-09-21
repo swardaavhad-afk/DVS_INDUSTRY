@@ -26,19 +26,21 @@ const server = app.listen(env.PORT, () => {
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
 
-async function shutdown(signal: string): Promise<void> {
+function shutdown(signal: string): void {
   logger.info(`${signal} received — shutting down gracefully`);
 
   // Stop accepting new connections
-  server.close(async () => {
-    try {
-      await prisma.$disconnect();
-      logger.info('Prisma disconnected. Bye 👋');
-      process.exit(0);
-    } catch (err) {
-      logger.error('Error during shutdown', { err });
-      process.exit(1);
-    }
+  server.close(() => {
+    void prisma
+      .$disconnect()
+      .then(() => {
+        logger.info('Prisma disconnected. Bye 👋');
+        process.exit(0);
+      })
+      .catch((err: unknown) => {
+        logger.error('Error during shutdown', { err });
+        process.exit(1);
+      });
   });
 
   // Force exit after 10 s if graceful shutdown hangs

@@ -23,13 +23,17 @@ router.use(authenticate);
 
 // ── Role groups ───────────────────────────────────────────────────────────────
 const ALL_ROLES = [
-  ROLES.ADMIN, ROLES.MANAGER, ROLES.HR,
-  ROLES.STORE, ROLES.PRODUCTION, ROLES.SALES,
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.HR,
+  ROLES.STORE,
+  ROLES.PRODUCTION,
+  ROLES.SALES,
 ] as const;
 
-const WRITE_ROLES  = [ROLES.ADMIN, ROLES.STORE] as const;
-const STOCK_ROLES  = [ROLES.ADMIN, ROLES.STORE, ROLES.PRODUCTION] as const;
-const ADMIN_ONLY   = [ROLES.ADMIN] as const;
+const WRITE_ROLES = [ROLES.ADMIN, ROLES.STORE] as const;
+const STOCK_ROLES = [ROLES.ADMIN, ROLES.STORE, ROLES.PRODUCTION] as const;
+const ADMIN_ONLY = [ROLES.ADMIN] as const;
 const REPORT_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.STORE] as const;
 
 // ══ STATISTICS ════════════════════════════════════════════════════════════════

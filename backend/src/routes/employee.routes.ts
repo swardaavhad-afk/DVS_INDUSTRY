@@ -208,7 +208,7 @@ router.post(
   '/:id/profile-image',
   authorize(...WRITE_ROLES),
   validateRequest({ params: employeeIdParamSchema }),
-  uploadProfileImage,                          // multer middleware
+  uploadProfileImage, // multer middleware
   asyncHandler(EmployeeController.uploadProfileImage),
 );
 

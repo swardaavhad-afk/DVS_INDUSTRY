@@ -23,9 +23,9 @@ const router = Router();
 router.use(authenticate);
 
 // ── Role groups ───────────────────────────────────────────────────────────────
-const PROD_WRITE   = [ROLES.ADMIN, ROLES.PRODUCTION] as const;
-const PROD_MANAGE  = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION] as const;
-const PROD_READ    = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION, ROLES.HR] as const;
+const PROD_WRITE = [ROLES.ADMIN, ROLES.PRODUCTION] as const;
+const PROD_MANAGE = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION] as const;
+const PROD_READ = [ROLES.ADMIN, ROLES.MANAGER, ROLES.PRODUCTION, ROLES.HR] as const;
 
 // ════════════════════════════════════════════════════════════════
 // KPIs & TREND  (before parameterised routes to avoid conflicts)

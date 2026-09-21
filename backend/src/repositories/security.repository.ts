@@ -27,44 +27,78 @@ import type {
 // ── Select shapes ─────────────────────────────────────────────────────────────
 
 const incidentSelect = {
-  id: true, incidentNumber: true, title: true, description: true,
-  type: true, severity: true, status: true,
-  location: true, departmentId: true, departmentName: true,
-  reportedById: true, reportedByName: true,
-  assignedToId: true, assignedToName: true,
-  occurredAt: true, resolvedAt: true, closedAt: true,
-  rootCause: true, correctiveAction: true,
-  createdAt: true, updatedAt: true, deletedAt: true,
+  id: true,
+  incidentNumber: true,
+  title: true,
+  description: true,
+  type: true,
+  severity: true,
+  status: true,
+  location: true,
+  departmentId: true,
+  departmentName: true,
+  reportedById: true,
+  reportedByName: true,
+  assignedToId: true,
+  assignedToName: true,
+  occurredAt: true,
+  resolvedAt: true,
+  closedAt: true,
+  rootCause: true,
+  correctiveAction: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
   _count: { select: { updates: true, alerts: true } },
 } as const;
 
 const incidentUpdateSelect = {
-  id: true, incidentId: true, comment: true, statusChange: true,
-  updatedById: true, updatedByName: true, createdAt: true,
+  id: true,
+  incidentId: true,
+  comment: true,
+  statusChange: true,
+  updatedById: true,
+  updatedByName: true,
+  createdAt: true,
 } as const;
 
 const alertSelect = {
-  id: true, alertNumber: true, title: true, message: true,
-  type: true, severity: true, status: true,
-  source: true, location: true, departmentId: true, departmentName: true,
+  id: true,
+  alertNumber: true,
+  title: true,
+  message: true,
+  type: true,
+  severity: true,
+  status: true,
+  source: true,
+  location: true,
+  departmentId: true,
+  departmentName: true,
   incidentId: true,
-  acknowledgedById: true, acknowledgedByName: true, acknowledgedAt: true,
-  resolvedById: true, resolvedByName: true, resolvedAt: true,
-  expiresAt: true, createdById: true, createdAt: true, updatedAt: true,
+  acknowledgedById: true,
+  acknowledgedByName: true,
+  acknowledgedAt: true,
+  resolvedById: true,
+  resolvedByName: true,
+  resolvedAt: true,
+  expiresAt: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
 // ── Converters ────────────────────────────────────────────────────────────────
 
 type PrismaIncident = Prisma.SecurityIncidentGetPayload<{ select: typeof incidentSelect }>;
-type PrismaUpdate   = Prisma.IncidentUpdateGetPayload<{ select: typeof incidentUpdateSelect }>;
-type PrismaAlert    = Prisma.SecurityAlertGetPayload<{ select: typeof alertSelect }>;
+type PrismaUpdate = Prisma.IncidentUpdateGetPayload<{ select: typeof incidentUpdateSelect }>;
+type PrismaAlert = Prisma.SecurityAlertGetPayload<{ select: typeof alertSelect }>;
 
 function toIncidentDto(r: PrismaIncident): SecurityIncidentDto {
   return {
     ...r,
-    type:     r.type     as IncidentType,
+    type: r.type as IncidentType,
     severity: r.severity as IncidentSeverity,
-    status:   r.status   as IncidentStatus,
+    status: r.status as IncidentStatus,
   };
 }
 
@@ -78,9 +112,9 @@ function toUpdateDto(r: PrismaUpdate): IncidentUpdateDto {
 function toAlertDto(r: PrismaAlert): SecurityAlertDto {
   return {
     ...r,
-    type:     r.type     as AlertType,
+    type: r.type as AlertType,
     severity: r.severity as IncidentSeverity,
-    status:   r.status   as AlertStatus,
+    status: r.status as AlertStatus,
   };
 }
 
@@ -88,9 +122,9 @@ function toAlertDto(r: PrismaAlert): SecurityAlertDto {
 
 async function nextIncidentNumber(): Promise<string> {
   const last = await prisma.securityIncident.findFirst({
-    where:   { incidentNumber: { startsWith: 'INC-' } },
+    where: { incidentNumber: { startsWith: 'INC-' } },
     orderBy: { id: 'desc' },
-    select:  { incidentNumber: true },
+    select: { incidentNumber: true },
   });
   const seq = last ? parseInt(last.incidentNumber.replace('INC-', ''), 10) + 1 : 1;
   return `INC-${String(seq).padStart(4, '0')}`;
@@ -98,9 +132,9 @@ async function nextIncidentNumber(): Promise<string> {
 
 async function nextAlertNumber(): Promise<string> {
   const last = await prisma.securityAlert.findFirst({
-    where:   { alertNumber: { startsWith: 'ALT-' } },
+    where: { alertNumber: { startsWith: 'ALT-' } },
     orderBy: { id: 'desc' },
-    select:  { alertNumber: true },
+    select: { alertNumber: true },
   });
   const seq = last ? parseInt(last.alertNumber.replace('ALT-', ''), 10) + 1 : 1;
   return `ALT-${String(seq).padStart(4, '0')}`;
@@ -109,7 +143,6 @@ async function nextAlertNumber(): Promise<string> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class SecurityRepository {
-
   // ══ INCIDENTS ════════════════════════════════════════════════════════════
 
   async createIncident(data: CreateIncidentData): Promise<SecurityIncidentDto> {
@@ -117,18 +150,18 @@ export class SecurityRepository {
     const raw = await prisma.securityIncident.create({
       data: {
         incidentNumber,
-        title:          data.title,
-        description:    data.description,
-        type:           data.type,
-        severity:       data.severity       ?? 'MEDIUM',
-        location:       data.location       ?? null,
-        departmentId:   data.departmentId   ?? null,
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        severity: data.severity ?? 'MEDIUM',
+        location: data.location ?? null,
+        departmentId: data.departmentId ?? null,
         departmentName: data.departmentName ?? null,
-        reportedById:   data.reportedById   ?? null,
+        reportedById: data.reportedById ?? null,
         reportedByName: data.reportedByName ?? null,
-        assignedToId:   data.assignedToId   ?? null,
+        assignedToId: data.assignedToId ?? null,
         assignedToName: data.assignedToName ?? null,
-        occurredAt:     data.occurredAt     ?? new Date(),
+        occurredAt: data.occurredAt ?? new Date(),
       },
       select: incidentSelect,
     });
@@ -137,24 +170,26 @@ export class SecurityRepository {
 
   async updateIncident(id: number, data: UpdateIncidentData): Promise<SecurityIncidentDto> {
     const up: Prisma.SecurityIncidentUpdateInput = {};
-    if (data.title            !== undefined) up.title            = data.title;
-    if (data.description      !== undefined) up.description      = data.description;
-    if (data.type             !== undefined) up.type             = data.type;
-    if (data.severity         !== undefined) up.severity         = data.severity;
-    if (data.status           !== undefined) up.status           = data.status;
-    if (data.location         !== undefined) up.location         = data.location;
-    if (data.departmentId     !== undefined) up.departmentId     = data.departmentId;
-    if (data.departmentName   !== undefined) up.departmentName   = data.departmentName;
-    if (data.assignedToId     !== undefined) up.assignedToId     = data.assignedToId;
-    if (data.assignedToName   !== undefined) up.assignedToName   = data.assignedToName;
-    if (data.occurredAt       !== undefined) up.occurredAt       = data.occurredAt;
-    if (data.resolvedAt       !== undefined) up.resolvedAt       = data.resolvedAt;
-    if (data.closedAt         !== undefined) up.closedAt         = data.closedAt;
-    if (data.rootCause        !== undefined) up.rootCause        = data.rootCause;
+    if (data.title !== undefined) up.title = data.title;
+    if (data.description !== undefined) up.description = data.description;
+    if (data.type !== undefined) up.type = data.type;
+    if (data.severity !== undefined) up.severity = data.severity;
+    if (data.status !== undefined) up.status = data.status;
+    if (data.location !== undefined) up.location = data.location;
+    if (data.departmentId !== undefined) up.departmentId = data.departmentId;
+    if (data.departmentName !== undefined) up.departmentName = data.departmentName;
+    if (data.assignedToId !== undefined) up.assignedToId = data.assignedToId;
+    if (data.assignedToName !== undefined) up.assignedToName = data.assignedToName;
+    if (data.occurredAt !== undefined) up.occurredAt = data.occurredAt;
+    if (data.resolvedAt !== undefined) up.resolvedAt = data.resolvedAt;
+    if (data.closedAt !== undefined) up.closedAt = data.closedAt;
+    if (data.rootCause !== undefined) up.rootCause = data.rootCause;
     if (data.correctiveAction !== undefined) up.correctiveAction = data.correctiveAction;
 
     const raw = await prisma.securityIncident.update({
-      where: { id }, data: up, select: incidentSelect,
+      where: { id },
+      data: up,
+      select: incidentSelect,
     });
     return toIncidentDto(raw);
   }
@@ -173,44 +208,51 @@ export class SecurityRepository {
       select: {
         ...incidentSelect,
         updates: { select: incidentUpdateSelect, orderBy: { createdAt: 'asc' } },
-        alerts:  { select: alertSelect,          orderBy: { createdAt: 'desc' } },
+        alerts: { select: alertSelect, orderBy: { createdAt: 'desc' } },
       },
     });
     if (!raw) return null;
     return {
       ...toIncidentDto(raw),
       updates: raw.updates.map(toUpdateDto),
-      alerts:  raw.alerts.map(toAlertDto),
+      alerts: raw.alerts.map(toAlertDto),
     };
   }
 
   async findAllIncidents(f: IncidentFilters): Promise<IncidentListResult> {
     const {
-      search, type = 'all', severity = 'all', status = 'all',
-      departmentId, fromDate, toDate,
-      sortBy = 'occurredAt', sortOrder = 'desc',
-      page = 1, pageSize = 20,
+      search,
+      type = 'all',
+      severity = 'all',
+      status = 'all',
+      departmentId,
+      fromDate,
+      toDate,
+      sortBy = 'occurredAt',
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
     } = f;
 
     const where: Prisma.SecurityIncidentWhereInput = { deletedAt: null };
 
-    if (type     !== 'all') where.type     = type     as IncidentType;
+    if (type !== 'all') where.type = type as IncidentType;
     if (severity !== 'all') where.severity = severity as IncidentSeverity;
-    if (status   !== 'all') where.status   = status   as IncidentStatus;
+    if (status !== 'all') where.status = status as IncidentStatus;
     if (departmentId !== undefined) where.departmentId = departmentId;
 
     if (fromDate !== undefined || toDate !== undefined) {
       where.occurredAt = {};
       if (fromDate) where.occurredAt.gte = fromDate;
-      if (toDate)   where.occurredAt.lte = toDate;
+      if (toDate) where.occurredAt.lte = toDate;
     }
 
     if (search?.trim()) {
       where.OR = [
-        { title:          { contains: search.trim(), mode: 'insensitive' } },
-        { description:    { contains: search.trim(), mode: 'insensitive' } },
+        { title: { contains: search.trim(), mode: 'insensitive' } },
+        { description: { contains: search.trim(), mode: 'insensitive' } },
         { incidentNumber: { contains: search.trim(), mode: 'insensitive' } },
-        { location:       { contains: search.trim(), mode: 'insensitive' } },
+        { location: { contains: search.trim(), mode: 'insensitive' } },
         { reportedByName: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
@@ -219,8 +261,11 @@ export class SecurityRepository {
 
     const [raws, total] = await prisma.$transaction([
       prisma.securityIncident.findMany({
-        where, select: incidentSelect, orderBy,
-        skip: (page - 1) * pageSize, take: pageSize,
+        where,
+        select: incidentSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
       prisma.securityIncident.count({ where }),
     ]);
@@ -230,7 +275,7 @@ export class SecurityRepository {
   async softDeleteIncident(id: number): Promise<void> {
     await prisma.securityIncident.update({
       where: { id },
-      data:  { deletedAt: new Date() },
+      data: { deletedAt: new Date() },
     });
   }
 
@@ -239,10 +284,10 @@ export class SecurityRepository {
   async addIncidentUpdate(data: CreateIncidentUpdateData): Promise<IncidentUpdateDto> {
     const raw = await prisma.incidentUpdate.create({
       data: {
-        incidentId:    data.incidentId,
-        comment:       data.comment,
-        statusChange:  data.statusChange  ?? null,
-        updatedById:   data.updatedById   ?? null,
+        incidentId: data.incidentId,
+        comment: data.comment,
+        statusChange: data.statusChange ?? null,
+        updatedById: data.updatedById ?? null,
         updatedByName: data.updatedByName ?? null,
       },
       select: incidentUpdateSelect,
@@ -252,8 +297,8 @@ export class SecurityRepository {
 
   async findUpdatesByIncident(incidentId: number): Promise<IncidentUpdateDto[]> {
     const raws = await prisma.incidentUpdate.findMany({
-      where:   { incidentId },
-      select:  incidentUpdateSelect,
+      where: { incidentId },
+      select: incidentUpdateSelect,
       orderBy: { createdAt: 'asc' },
     });
     return raws.map(toUpdateDto);
@@ -261,7 +306,7 @@ export class SecurityRepository {
 
   async findUpdateById(updateId: number): Promise<IncidentUpdateDto | null> {
     const raw = await prisma.incidentUpdate.findUnique({
-      where:  { id: updateId },
+      where: { id: updateId },
       select: incidentUpdateSelect,
     });
     return raw ? toUpdateDto(raw) : null;
@@ -278,17 +323,17 @@ export class SecurityRepository {
     const raw = await prisma.securityAlert.create({
       data: {
         alertNumber,
-        title:          data.title,
-        message:        data.message,
-        type:           data.type,
-        severity:       data.severity       ?? 'MEDIUM',
-        source:         data.source         ?? null,
-        location:       data.location       ?? null,
-        departmentId:   data.departmentId   ?? null,
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        severity: data.severity ?? 'MEDIUM',
+        source: data.source ?? null,
+        location: data.location ?? null,
+        departmentId: data.departmentId ?? null,
         departmentName: data.departmentName ?? null,
-        incidentId:     data.incidentId     ?? null,
-        expiresAt:      data.expiresAt      ?? null,
-        createdById:    data.createdById    ?? null,
+        incidentId: data.incidentId ?? null,
+        expiresAt: data.expiresAt ?? null,
+        createdById: data.createdById ?? null,
       },
       select: alertSelect,
     });
@@ -297,21 +342,23 @@ export class SecurityRepository {
 
   async updateAlert(id: number, data: UpdateAlertData): Promise<SecurityAlertDto> {
     const up: Prisma.SecurityAlertUpdateInput = {};
-    if (data.title          !== undefined) up.title          = data.title;
-    if (data.message        !== undefined) up.message        = data.message;
-    if (data.type           !== undefined) up.type           = data.type;
-    if (data.severity       !== undefined) up.severity       = data.severity;
-    if (data.source         !== undefined) up.source         = data.source;
-    if (data.location       !== undefined) up.location       = data.location;
-    if (data.departmentId   !== undefined) up.departmentId   = data.departmentId;
+    if (data.title !== undefined) up.title = data.title;
+    if (data.message !== undefined) up.message = data.message;
+    if (data.type !== undefined) up.type = data.type;
+    if (data.severity !== undefined) up.severity = data.severity;
+    if (data.source !== undefined) up.source = data.source;
+    if (data.location !== undefined) up.location = data.location;
+    if (data.departmentId !== undefined) up.departmentId = data.departmentId;
     if (data.departmentName !== undefined) up.departmentName = data.departmentName;
-    if (data.incidentId     !== undefined) up.incident = data.incidentId != null
-      ? { connect: { id: data.incidentId } }
-      : { disconnect: true };
-    if (data.expiresAt      !== undefined) up.expiresAt      = data.expiresAt;
+    if (data.incidentId !== undefined)
+      up.incident =
+        data.incidentId != null ? { connect: { id: data.incidentId } } : { disconnect: true };
+    if (data.expiresAt !== undefined) up.expiresAt = data.expiresAt;
 
     const raw = await prisma.securityAlert.update({
-      where: { id }, data: up, select: alertSelect,
+      where: { id },
+      data: up,
+      select: alertSelect,
     });
     return toAlertDto(raw);
   }
@@ -320,10 +367,10 @@ export class SecurityRepository {
     const raw = await prisma.securityAlert.update({
       where: { id },
       data: {
-        status:               'ACKNOWLEDGED',
-        acknowledgedById:     data.acknowledgedById   ?? null,
-        acknowledgedByName:   data.acknowledgedByName ?? null,
-        acknowledgedAt:       new Date(),
+        status: 'ACKNOWLEDGED',
+        acknowledgedById: data.acknowledgedById ?? null,
+        acknowledgedByName: data.acknowledgedByName ?? null,
+        acknowledgedAt: new Date(),
       },
       select: alertSelect,
     });
@@ -334,10 +381,10 @@ export class SecurityRepository {
     const raw = await prisma.securityAlert.update({
       where: { id },
       data: {
-        status:          'RESOLVED',
-        resolvedById:    data.resolvedById   ?? null,
-        resolvedByName:  data.resolvedByName ?? null,
-        resolvedAt:      new Date(),
+        status: 'RESOLVED',
+        resolvedById: data.resolvedById ?? null,
+        resolvedByName: data.resolvedByName ?? null,
+        resolvedAt: new Date(),
       },
       select: alertSelect,
     });
@@ -347,46 +394,55 @@ export class SecurityRepository {
   async expireAlert(id: number): Promise<void> {
     await prisma.securityAlert.update({
       where: { id },
-      data:  { status: 'EXPIRED' },
+      data: { status: 'EXPIRED' },
     });
   }
 
   async findAlertById(id: number): Promise<SecurityAlertDto | null> {
     const raw = await prisma.securityAlert.findUnique({
-      where: { id }, select: alertSelect,
+      where: { id },
+      select: alertSelect,
     });
     return raw ? toAlertDto(raw) : null;
   }
 
   async findAllAlerts(f: AlertFilters): Promise<AlertListResult> {
     const {
-      search, type = 'all', severity = 'all', status = 'all',
-      departmentId, incidentId, fromDate, toDate,
-      sortBy = 'createdAt', sortOrder = 'desc',
-      page = 1, pageSize = 20,
+      search,
+      type = 'all',
+      severity = 'all',
+      status = 'all',
+      departmentId,
+      incidentId,
+      fromDate,
+      toDate,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      pageSize = 20,
     } = f;
 
     const where: Prisma.SecurityAlertWhereInput = {};
 
-    if (type     !== 'all') where.type     = type     as AlertType;
+    if (type !== 'all') where.type = type as AlertType;
     if (severity !== 'all') where.severity = severity as IncidentSeverity;
-    if (status   !== 'all') where.status   = status   as AlertStatus;
+    if (status !== 'all') where.status = status as AlertStatus;
     if (departmentId !== undefined) where.departmentId = departmentId;
-    if (incidentId   !== undefined) where.incidentId   = incidentId;
+    if (incidentId !== undefined) where.incidentId = incidentId;
 
     if (fromDate !== undefined || toDate !== undefined) {
       where.createdAt = {};
       if (fromDate) where.createdAt.gte = fromDate;
-      if (toDate)   where.createdAt.lte = toDate;
+      if (toDate) where.createdAt.lte = toDate;
     }
 
     if (search?.trim()) {
       where.OR = [
-        { title:       { contains: search.trim(), mode: 'insensitive' } },
-        { message:     { contains: search.trim(), mode: 'insensitive' } },
+        { title: { contains: search.trim(), mode: 'insensitive' } },
+        { message: { contains: search.trim(), mode: 'insensitive' } },
         { alertNumber: { contains: search.trim(), mode: 'insensitive' } },
-        { location:    { contains: search.trim(), mode: 'insensitive' } },
-        { source:      { contains: search.trim(), mode: 'insensitive' } },
+        { location: { contains: search.trim(), mode: 'insensitive' } },
+        { source: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
 
@@ -394,8 +450,11 @@ export class SecurityRepository {
 
     const [raws, total] = await prisma.$transaction([
       prisma.securityAlert.findMany({
-        where, select: alertSelect, orderBy,
-        skip: (page - 1) * pageSize, take: pageSize,
+        where,
+        select: alertSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
       prisma.securityAlert.count({ where }),
     ]);
@@ -409,8 +468,8 @@ export class SecurityRepository {
   // ══ KPIs ═════════════════════════════════════════════════════════════════
 
   async getKPIs(departmentId?: number, fromDate?: Date, toDate?: Date): Promise<SecurityKPIs> {
-    const now           = new Date();
-    const startOfMonth  = new Date(now.getFullYear(), now.getMonth(), 1);
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const incBase: Prisma.SecurityIncidentWhereInput = {
       deletedAt: null,
@@ -453,21 +512,26 @@ export class SecurityRepository {
       prisma.securityAlert.count({ where: alertBase }),
       prisma.securityAlert.count({ where: { ...alertBase, status: 'ACTIVE' } }),
       prisma.securityAlert.count({ where: { ...alertBase, status: 'ACKNOWLEDGED' } }),
-      prisma.securityAlert.count({ where: { ...alertBase, severity: 'CRITICAL', status: 'ACTIVE' } }),
+      prisma.securityAlert.count({
+        where: { ...alertBase, severity: 'CRITICAL', status: 'ACTIVE' },
+      }),
       prisma.securityIncident.groupBy({
         by: ['type'],
         where: incBase,
         _count: { id: true },
+        orderBy: { type: 'asc' },
       }),
       prisma.securityIncident.groupBy({
         by: ['severity'],
         where: incBase,
         _count: { id: true },
+        orderBy: { severity: 'asc' },
       }),
       prisma.securityAlert.groupBy({
         by: ['type'],
         where: alertBase,
         _count: { id: true },
+        orderBy: { type: 'asc' },
       }),
     ]);
 
@@ -487,7 +551,7 @@ export class SecurityRepository {
         },
       });
       incidentTrend.push({
-        date:  d.toLocaleDateString('en-IN', { weekday: 'short' }),
+        date: d.toLocaleDateString('en-IN', { weekday: 'short' }),
         count,
       });
     }
@@ -502,24 +566,18 @@ export class SecurityRepository {
       activeAlerts,
       acknowledgedAlerts,
       criticalAlerts,
-      incidentsByType: incByType.map(
-        (r: { type: string; _count: { id: number } }) => ({
-          type:  r.type as IncidentType,
-          count: r._count.id,
-        }),
-      ),
-      incidentsBySeverity: incBySeverity.map(
-        (r: { severity: string; _count: { id: number } }) => ({
-          severity: r.severity as IncidentSeverity,
-          count:    r._count.id,
-        }),
-      ),
-      alertsByType: alertByType.map(
-        (r: { type: string; _count: { id: number } }) => ({
-          type:  r.type as AlertType,
-          count: r._count.id,
-        }),
-      ),
+      incidentsByType: incByType.map((r) => ({
+        type: r.type as IncidentType,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
+      })),
+      incidentsBySeverity: incBySeverity.map((r) => ({
+        severity: r.severity as IncidentSeverity,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
+      })),
+      alertsByType: alertByType.map((r) => ({
+        type: r.type as AlertType,
+        count: (r._count as { id?: number } | undefined)?.id ?? 0,
+      })),
       incidentTrend,
     };
   }

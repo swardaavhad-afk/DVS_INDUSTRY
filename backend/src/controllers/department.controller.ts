@@ -17,10 +17,7 @@ function parseId(raw: string | string[] | undefined): number {
 
 // ── Create ─────────────────────────────────────────────────────────────────
 
-export async function createDepartment(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function createDepartment(req: Request, res: Response): Promise<void> {
   const body = req.body as CreateDepartmentInput;
   const dept = await departmentService.create({
     name: body.name,
@@ -33,10 +30,7 @@ export async function createDepartment(
 
 // ── Get All ────────────────────────────────────────────────────────────────
 
-export async function getAllDepartments(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getAllDepartments(req: Request, res: Response): Promise<void> {
   // After Zod validation, query values have their defaults applied
   const query = req.query as unknown as DepartmentQueryInput;
 
@@ -68,10 +62,7 @@ export async function getAllDepartments(
 
 // ── Get by ID ──────────────────────────────────────────────────────────────
 
-export async function getDepartmentById(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getDepartmentById(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const dept = await departmentService.getById(id);
   sendSuccess(res, dept);
@@ -79,10 +70,7 @@ export async function getDepartmentById(
 
 // ── Update ─────────────────────────────────────────────────────────────────
 
-export async function updateDepartment(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function updateDepartment(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const body = req.body as UpdateDepartmentInput;
 
@@ -99,10 +87,7 @@ export async function updateDepartment(
 
 // ── Soft Delete ────────────────────────────────────────────────────────────
 
-export async function deleteDepartment(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function deleteDepartment(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   await departmentService.softDelete(id);
   sendNoContent(res);
@@ -110,10 +95,7 @@ export async function deleteDepartment(
 
 // ── Restore ────────────────────────────────────────────────────────────────
 
-export async function restoreDepartment(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function restoreDepartment(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const dept = await departmentService.restore(id);
   sendSuccess(res, dept, 200, 'Department restored successfully');

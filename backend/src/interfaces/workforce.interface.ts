@@ -8,13 +8,13 @@ export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LATE' | 'LEA
 export interface ShiftDto {
   id: number;
   name: string;
-  startTime: string;   // "HH:MM"
-  endTime: string;     // "HH:MM"
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
   isNightShift: boolean;
   description: string | null;
   createdAt: Date;
   updatedAt: Date;
-  _count: { employees: number };   // always present — required by select shape
+  _count: { employees: number }; // always present — required by select shape
 }
 
 export interface CreateShiftData {
@@ -123,7 +123,7 @@ export interface AttendanceFilters {
   status?: AttendanceStatus | 'all' | undefined;
   fromDate?: Date | undefined;
   toDate?: Date | undefined;
-  date?: Date | undefined;          // exact date lookup
+  date?: Date | undefined; // exact date lookup
   sortOrder?: 'asc' | 'desc' | undefined;
   page?: number | undefined;
   pageSize?: number | undefined;
@@ -132,14 +132,14 @@ export interface AttendanceFilters {
 // ── Daily summary (for dashboard / workforce view) ────────────────────────────
 
 export interface DailyAttendanceSummary {
-  date: string;                // ISO date string
+  date: string; // ISO date string
   totalEmployees: number;
   present: number;
   absent: number;
   halfDay: number;
   late: number;
   onLeave: number;
-  attendanceRate: string;      // e.g. "96.4%"
+  attendanceRate: string; // e.g. "96.4%"
   byDepartment: Array<{
     departmentId: number;
     departmentName: string;
@@ -151,7 +151,7 @@ export interface DailyAttendanceSummary {
 // ── Attendance trend (7-day / 30-day) ─────────────────────────────────────────
 
 export interface AttendanceTrendEntry {
-  date: string;     // "Mon", "12 Jun" etc.
+  date: string; // "Mon", "12 Jun" etc.
   present: number;
   absent: number;
   late: number;

@@ -108,10 +108,7 @@ export async function restoreMaterial(req: Request, res: Response): Promise<void
 
 // ══ STOCK TRANSACTIONS ════════════════════════════════════════════════════════
 
-export async function adjustStock(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function adjustStock(req: AuthenticatedRequest, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const body = req.body as StockAdjustmentInput;
 
@@ -129,10 +126,7 @@ export async function adjustStock(
   sendCreated(res, txn, 'Stock transaction recorded successfully');
 }
 
-export async function getMaterialTransactions(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getMaterialTransactions(req: Request, res: Response): Promise<void> {
   const id = parseId(req.params['id']);
   const transactions = await inventoryService.getMaterialTransactions(id);
   sendSuccess(res, transactions);
@@ -167,10 +161,7 @@ export async function getAllTransactions(req: Request, res: Response): Promise<v
 
 // ══ SCRAP RECORDS ══════════════════════════════════════════════════════════════
 
-export async function recordScrap(
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> {
+export async function recordScrap(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreateScrapRecordInput;
 
   const scrap = await inventoryService.recordScrap({

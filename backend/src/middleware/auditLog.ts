@@ -10,24 +10,30 @@ const repo = new AuditRepository();
  * Only write operations (POST/PATCH/PUT/DELETE) and special endpoints are logged.
  */
 function resolveAction(method: string, path: string, statusCode: number): AuditAction | null {
-  if (statusCode >= 400) return null;  // don't log failed requests
+  if (statusCode >= 400) return null; // don't log failed requests
 
   const m = method.toUpperCase();
-  if (path.includes('/login'))  return 'LOGIN';
+  if (path.includes('/login')) return 'LOGIN';
   if (path.includes('/logout')) return 'LOGOUT';
   if (path.includes('/export') || path.includes('/reports')) return 'EXPORT';
-  if (path.includes('/status') || path.includes('/approve') ||
-      path.includes('/dispatch') || path.includes('/deliver') ||
-      path.includes('/cancel')   || path.includes('/confirm') ||
-      path.includes('/transit')  || path.includes('/production')) {
+  if (
+    path.includes('/status') ||
+    path.includes('/approve') ||
+    path.includes('/dispatch') ||
+    path.includes('/deliver') ||
+    path.includes('/cancel') ||
+    path.includes('/confirm') ||
+    path.includes('/transit') ||
+    path.includes('/production')
+  ) {
     return 'STATUS_CHANGE';
   }
   if (path.includes('/bulk')) return 'BULK_ACTION';
 
-  if (m === 'POST')   return 'CREATE';
+  if (m === 'POST') return 'CREATE';
   if (m === 'PATCH' || m === 'PUT') return 'UPDATE';
   if (m === 'DELETE') return 'DELETE';
-  return null;   // GET — skip
+  return null; // GET — skip
 }
 
 /**
@@ -38,24 +44,24 @@ function resolveAction(method: string, path: string, statusCode: number): AuditA
 function resolveEntity(path: string): string {
   const segments = path.split('/').filter(Boolean);
   // Find the segment after the version prefix (api, v1)
-  const versionIdx = segments.findIndex(s => /^v\d+$/.test(s));
-  const entitySeg  = segments[versionIdx + 1] ?? segments[2] ?? 'Unknown';
+  const versionIdx = segments.findIndex((s) => /^v\d+$/.test(s));
+  const entitySeg = segments[versionIdx + 1] ?? segments[2] ?? 'Unknown';
 
   const map: Record<string, string> = {
-    'auth':           'Auth',
-    'employees':      'Employee',
-    'departments':    'Department',
-    'inventory':      'Inventory',
-    'workforce':      'Workforce',
-    'production':     'Production',
-    'work-orders':    'WorkOrder',
-    'orders':         'Order',
-    'suppliers':      'Supplier',
-    'clients':        'Client',
-    'client-orders':  'ClientOrder',
-    'purchase-orders':'PurchaseOrder',
-    'reports':        'Report',
-    'audit':          'AuditLog',
+    auth: 'Auth',
+    employees: 'Employee',
+    departments: 'Department',
+    inventory: 'Inventory',
+    workforce: 'Workforce',
+    production: 'Production',
+    'work-orders': 'WorkOrder',
+    orders: 'Order',
+    suppliers: 'Supplier',
+    clients: 'Client',
+    'client-orders': 'ClientOrder',
+    'purchase-orders': 'PurchaseOrder',
+    reports: 'Report',
+    audit: 'AuditLog',
   };
   return map[entitySeg] ?? entitySeg;
 }
@@ -80,33 +86,30 @@ function resolveEntityId(path: string): string | null {
  *   — or selectively:
  *   router.post('/items', authenticate, auditLog, handler)
  */
-export function auditLog(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): void {
+export function auditLog(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const originalEnd = res.end.bind(res);
 
   // Override res.end to hook into response completion
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (res as any).end = function (...args: Parameters<typeof res.end>) {
     const statusCode = res.statusCode;
-    const action     = resolveAction(req.method, req.path, statusCode);
+    const action = resolveAction(req.method, req.path, statusCode);
 
     if (action !== null) {
       const data: CreateAuditLogData = {
-        userId:    req.user?.id     ?? null,
-        userEmail: req.user?.email  ?? null,
-        userRole:  req.user?.role   ?? null,
+        userId: req.user?.id ?? null,
+        userEmail: req.user?.email ?? null,
+        userRole: req.user?.role ?? null,
         action,
-        entity:    resolveEntity(req.path),
-        entityId:  resolveEntityId(req.path),
-        method:    req.method,
-        path:      req.originalUrl,
+        entity: resolveEntity(req.path),
+        entityId: resolveEntityId(req.path),
+        method: req.method,
+        path: req.originalUrl,
         statusCode,
-        ipAddress: (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
-                   ?? req.socket.remoteAddress
-                   ?? null,
+        ipAddress:
+          (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
+          req.socket.remoteAddress ??
+          null,
         userAgent: req.headers['user-agent'] ?? null,
       };
 

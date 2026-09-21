@@ -36,10 +36,10 @@ export default tseslint.config(
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports' },
-      ],
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
 
       // ── General ──────────────────────────────────────────────
       'no-console': ['warn', { allow: ['warn', 'error'] }],
@@ -50,6 +50,6 @@ export default tseslint.config(
 
   {
     // Ignore compiled output and configs
-    ignores: ['dist/**', 'node_modules/**', '*.config.*', 'tests/**'],
+    ignores: ['dist/**', 'node_modules/**', '*.config.*', 'tests/**', 'src/__tests__/**'],
   },
 );

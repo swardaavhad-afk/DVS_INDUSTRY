@@ -7,9 +7,7 @@ import { z } from 'zod';
  */
 const envSchema = z.object({
   // Server
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
 
   // Database
@@ -20,9 +18,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('15m'),
 
   // JWT Refresh Token
-  REFRESH_TOKEN_SECRET: z
-    .string()
-    .min(32, 'REFRESH_TOKEN_SECRET must be at least 32 characters'),
+  REFRESH_TOKEN_SECRET: z.string().min(32, 'REFRESH_TOKEN_SECRET must be at least 32 characters'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
 
   // Security
@@ -32,9 +28,11 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
   // Logging
-  LOG_LEVEL: z
-    .enum(['error', 'warn', 'info', 'http', 'debug'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+
+  // Initial administrator credentials are required when seeding production.
+  SEED_ADMIN_EMAIL: z.string().email().default('admin@dvsindustry.com'),
+  SEED_ADMIN_PASSWORD: z.string().min(16).optional(),
 });
 
 /**
@@ -52,6 +50,10 @@ function parseEnv(): z.infer<typeof envSchema> {
     // Crash intentionally — broken config must never reach runtime
     console.error('❌  Environment validation failed:\n' + formatted);
     process.exit(1);
+  }
+
+  if (result.data.NODE_ENV === 'production' && result.data.SEED_ADMIN_PASSWORD === undefined) {
+    throw new Error('SEED_ADMIN_PASSWORD is required in production.');
   }
 
   return result.data;

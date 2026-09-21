@@ -16,11 +16,7 @@ export function validateRequest(schemas: {
   params?: ZodObject<ZodRawShape>;
   query?: ZodObject<ZodRawShape>;
 }) {
-  return async (
-    req: Request,
-    _res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (schemas.body !== undefined) {
         req.body = await schemas.body.parseAsync(req.body);

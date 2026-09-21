@@ -31,8 +31,7 @@ export interface ApiErrorResponse {
 }
 
 export type ApiResponse<T, M extends ApiMeta = ApiMeta> =
-  | ApiSuccessResponse<T, M>
-  | ApiErrorResponse;
+  ApiSuccessResponse<T, M> | ApiErrorResponse;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

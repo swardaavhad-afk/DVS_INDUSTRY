@@ -27,16 +27,16 @@ export interface TokenPair {
 }
 
 export interface JwtAccessPayload {
-  sub: number;   // userId
+  sub: number; // userId
   email: string;
-  role: string;  // role name
+  role: string; // role name
   iat?: number;
   exp?: number;
 }
 
 export interface JwtRefreshPayload {
-  sub: number;   // userId
-  jti: string;   // token family / unique token id
+  sub: number; // userId
+  jti: string; // token family / unique token id
   iat?: number;
   exp?: number;
 }
@@ -72,7 +72,7 @@ export interface IRefreshTokenRepository {
 export interface CreateUserData {
   fullName: string;
   email: string;
-  password: string;        // plain text — service will hash it
+  password: string; // plain text — service will hash it
   phone?: string | null;
   roleId: number;
 }

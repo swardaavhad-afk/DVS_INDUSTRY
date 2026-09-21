@@ -233,7 +233,9 @@ export class InventoryRepository {
     if (lowStockOnly) {
       where.AND = [
         ...(Array.isArray(where.AND) ? where.AND : []),
-        { currentStock: { lte: prisma.material.fields.minStockLevel } } as unknown as Prisma.MaterialWhereInput,
+        {
+          currentStock: { lte: prisma.material.fields.minStockLevel },
+        } as unknown as Prisma.MaterialWhereInput,
       ];
     }
 
@@ -297,15 +299,11 @@ export class InventoryRepository {
       const current = material.currentStock.toNumber();
 
       // Direction logic
-      const isDeduction =
-        data.type === 'OUT' || data.type === 'SCRAP' || data.type === 'RETURN';
-      const newStock = isDeduction
-        ? Math.max(0, current - qty)
-        : current + qty;
+      const isDeduction = data.type === 'OUT' || data.type === 'SCRAP' || data.type === 'RETURN';
+      const newStock = isDeduction ? Math.max(0, current - qty) : current + qty;
 
       // ADJUSTMENT can go either way — treat negative quantity as reduction
-      const finalStock =
-        data.type === 'ADJUSTMENT' ? Math.max(0, newStock) : newStock;
+      const finalStock = data.type === 'ADJUSTMENT' ? Math.max(0, newStock) : newStock;
 
       // Update stock
       await tx.material.update({
@@ -458,11 +456,7 @@ export class InventoryRepository {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const [
-      allMaterials,
-      totalTransactionsToday,
-      scrapThisMonth,
-    ] = await prisma.$transaction([
+    const [allMaterials, totalTransactionsToday, scrapThisMonth] = await prisma.$transaction([
       prisma.material.findMany({
         where: { deletedAt: null },
         select: materialSelect,
@@ -481,9 +475,7 @@ export class InventoryRepository {
     const lowStockMaterials = activeMaterials.filter(
       (m) => parseFloat(m.currentStock) <= parseFloat(m.minStockLevel),
     );
-    const outOfStockCount = activeMaterials.filter(
-      (m) => parseFloat(m.currentStock) === 0,
-    ).length;
+    const outOfStockCount = activeMaterials.filter((m) => parseFloat(m.currentStock) === 0).length;
 
     // Total stock value
     let totalStockValue = 0;
