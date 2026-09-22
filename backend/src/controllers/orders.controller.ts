@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../types';
 import { OrdersService } from '../services/orders.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/response';
+import { ForbiddenError } from '../errors';
 import type {
   CreateSupplierInput,
   UpdateSupplierInput,
@@ -29,6 +30,26 @@ import type {
 } from '../interfaces';
 
 const svc = new OrdersService();
+
+function isClientRequest(req: AuthenticatedRequest): boolean {
+  return req.user?.role === 'CLIENT';
+}
+
+async function getRequestClient(req: AuthenticatedRequest) {
+  if (req.user === undefined) throw new ForbiddenError('Authenticated client context is required');
+  return svc.getClientByEmail(req.user.email);
+}
+
+async function assertClientOrderAccess(req: AuthenticatedRequest, id: number) {
+  const order = await svc.getClientOrderById(id);
+  if (!isClientRequest(req)) return order;
+
+  const client = await getRequestClient(req);
+  if (order.clientId !== client.id) {
+    throw new ForbiddenError('Access denied for this client order');
+  }
+  return order;
+}
 
 function parseId(raw: string | string[] | undefined): number {
   return parseInt(String(raw ?? '0'), 10);
@@ -143,7 +164,18 @@ export async function createClient(req: Request, res: Response): Promise<void> {
   sendCreated(res, client, 'Client created successfully');
 }
 
-export async function getAllClients(req: Request, res: Response): Promise<void> {
+export async function getAllClients(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (isClientRequest(req)) {
+    const client = await getRequestClient(req);
+    sendSuccess(res, [client], 200, undefined, {
+      page: 1,
+      pageSize: 1,
+      total: 1,
+      totalPages: 1,
+    });
+    return;
+  }
+
   const q = req.query as unknown as ClientQueryInput;
   const filters: ClientFilters = {
     page: q.page,
@@ -165,8 +197,13 @@ export async function getAllClients(req: Request, res: Response): Promise<void> 
   });
 }
 
-export async function getClientById(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.getClientById(parseId(req.params['id'])));
+export async function getClientById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const id = parseId(req.params['id']);
+  if (isClientRequest(req)) {
+    const client = await getRequestClient(req);
+    if (client.id !== id) throw new ForbiddenError('Access denied for this client profile');
+  }
+  sendSuccess(res, await svc.getClientById(id));
 }
 
 export async function updateClient(req: Request, res: Response): Promise<void> {
@@ -198,8 +235,9 @@ export async function restoreClient(req: Request, res: Response): Promise<void> 
 
 export async function createClientOrder(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = req.body as CreateClientOrderInput;
+  const clientId = isClientRequest(req) ? (await getRequestClient(req)).id : body.clientId;
   const order = await svc.createClientOrder({
-    clientId: body.clientId,
+    clientId,
     product: body.product,
     quantity: body.quantity,
     unit: body.unit,
@@ -212,7 +250,7 @@ export async function createClientOrder(req: AuthenticatedRequest, res: Response
   sendCreated(res, order, 'Client order created successfully');
 }
 
-export async function getAllClientOrders(req: Request, res: Response): Promise<void> {
+export async function getAllClientOrders(req: AuthenticatedRequest, res: Response): Promise<void> {
   const q = req.query as unknown as ClientOrderQueryInput;
   const filters: ClientOrderFilters = {
     page: q.page,
@@ -221,7 +259,11 @@ export async function getAllClientOrders(req: Request, res: Response): Promise<v
     sortOrder: q.sortOrder,
     status: q.status,
   };
-  if (q.clientId !== undefined) filters.clientId = q.clientId;
+  if (isClientRequest(req)) {
+    filters.clientId = (await getRequestClient(req)).id;
+  } else if (q.clientId !== undefined) {
+    filters.clientId = Number(q.clientId);
+  }
   if (q.search !== undefined) filters.search = q.search;
   if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
   if (q.toDate !== undefined) filters.toDate = q.toDate;
@@ -237,11 +279,13 @@ export async function getAllClientOrders(req: Request, res: Response): Promise<v
   });
 }
 
-export async function getClientOrderById(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.getClientOrderById(parseId(req.params['id'])));
+export async function getClientOrderById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  sendSuccess(res, await assertClientOrderAccess(req, parseId(req.params['id'])));
 }
 
-export async function updateClientOrder(req: Request, res: Response): Promise<void> {
+export async function updateClientOrder(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const id = parseId(req.params['id']);
+  await assertClientOrderAccess(req, id);
   const body = req.body as UpdateClientOrderInput;
   const data: UpdateClientOrderData = {};
   if (body.product !== undefined) data.product = body.product;
@@ -253,7 +297,7 @@ export async function updateClientOrder(req: Request, res: Response): Promise<vo
 
   sendSuccess(
     res,
-    await svc.updateClientOrder(parseId(req.params['id']), data),
+    await svc.updateClientOrder(id, data),
     200,
     'Order updated',
   );
@@ -291,8 +335,10 @@ export async function deliverClientOrder(req: Request, res: Response): Promise<v
   );
 }
 
-export async function cancelClientOrder(req: Request, res: Response): Promise<void> {
-  sendSuccess(res, await svc.cancelClientOrder(parseId(req.params['id'])), 200, 'Order cancelled');
+export async function cancelClientOrder(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const id = parseId(req.params['id']);
+  await assertClientOrderAccess(req, id);
+  sendSuccess(res, await svc.cancelClientOrder(id), 200, 'Order cancelled');
 }
 
 // ══ PURCHASE ORDERS ═══════════════════════════════════════════════════════════
@@ -322,7 +368,7 @@ export async function getAllPurchaseOrders(req: Request, res: Response): Promise
     sortOrder: q.sortOrder,
     status: q.status,
   };
-  if (q.supplierId !== undefined) filters.supplierId = q.supplierId;
+  if (q.supplierId !== undefined) filters.supplierId = Number(q.supplierId);
   if (q.search !== undefined) filters.search = q.search;
   if (q.fromDate !== undefined) filters.fromDate = q.fromDate;
   if (q.toDate !== undefined) filters.toDate = q.toDate;

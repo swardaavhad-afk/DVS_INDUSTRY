@@ -29,19 +29,18 @@ export interface LoginResponse {
 // ── Frontend role mapping ─────────────────────────────────────────────────────
 // Backend roles → frontend page/section roles
 
-export type FrontendRole = 'admin' | 'production' | 'quality' | 'store' | 'supplier' | 'client';
+export type FrontendRole = 'admin' | 'production' | 'store' | 'supplier' | 'client' | 'unauthorized';
 
 const BACKEND_TO_FRONTEND: Record<string, FrontendRole> = {
   ADMIN:      'admin',
-  MANAGER:    'admin',
-  HR:         'admin',
   PRODUCTION: 'production',
   STORE:      'store',
-  SALES:      'store',
+  SUPPLIER:   'supplier',
+  CLIENT:     'client',
 };
 
 export function getFrontendRole(backendRole: string): FrontendRole {
-  return BACKEND_TO_FRONTEND[backendRole.toUpperCase()] ?? 'admin';
+  return BACKEND_TO_FRONTEND[backendRole.toUpperCase()] ?? 'unauthorized';
 }
 
 function getBackendRoleName(role: AuthUser['role']): string {

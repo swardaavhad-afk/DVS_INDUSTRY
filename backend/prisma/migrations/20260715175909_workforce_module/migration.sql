@@ -21,9 +21,6 @@ CREATE TYPE "EmployeeStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'ON_LEAVE', 'TERMINA
 CREATE TYPE "AttendanceStatus" AS ENUM ('PRESENT', 'ABSENT', 'HALF_DAY', 'LATE', 'LEAVE');
 
 -- AlterTable
-ALTER TABLE "Department" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
--- AlterTable
 ALTER TABLE "Employee" DROP COLUMN "fullName",
 ADD COLUMN     "address" TEXT,
 ADD COLUMN     "city" TEXT,

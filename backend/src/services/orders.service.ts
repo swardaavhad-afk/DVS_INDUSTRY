@@ -155,6 +155,12 @@ export class OrdersService {
     return this.getClientOrThrow(id);
   }
 
+  async getClientByEmail(email: string): Promise<ClientDto> {
+    const client = await this.repo.findClientByEmail(email);
+    if (client === null) throw new NotFoundError('No client profile is linked to this account');
+    return client;
+  }
+
   async getAllClients(filters: ClientFilters): Promise<ClientListResult> {
     return this.repo.findAllClients(filters);
   }

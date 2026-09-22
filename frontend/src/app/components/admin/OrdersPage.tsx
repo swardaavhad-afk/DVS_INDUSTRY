@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast as showSonnerToast } from "sonner";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
-} from "recharts";
-import {
-  Plus, Download, Eye, CheckCircle2, ArrowRight, Truck, X, ShoppingCart,
+  Plus, Download, Eye, CheckCircle2, Truck, X,
   FileText, Package, AlertCircle, Printer,
 } from "lucide-react";
 import { PageHeader, Card, CardHeader, KPICard, StatusBadge, Btn, DataTable, TabBar } from "../shared/UI";
@@ -31,42 +28,17 @@ interface SupplierOrder {
   _apiId?: number;
 }
 
-/* ── Static data ── */
-const INITIAL_CLIENT_ORDERS: ClientOrder[] = [
-  { id: "ORD-2841", client: "Reliance Eng.", product: "Steel Frames (2mm)", qty: 500, orderDate: "10 Jun", requiredDate: "20 Jun", status: "in-production", value: "₹1,82,000" },
-  { id: "ORD-2842", client: "Tata Motors", product: "Pressed Panels", qty: 200, orderDate: "09 Jun", requiredDate: "18 Jun", status: "dispatched", value: "₹96,000", dispatch: "11 Jun" },
-  { id: "ORD-2843", client: "Mahindra Ltd.", product: "Aluminium Parts", qty: 350, orderDate: "09 Jun", requiredDate: "22 Jun", status: "pending", value: "₹2,45,000" },
-  { id: "ORD-2844", client: "L&T Ltd.", product: "Copper Assemblies", qty: 150, orderDate: "08 Jun", requiredDate: "15 Jun", status: "approved", value: "₹3,18,000" },
-  { id: "ORD-2845", client: "Bajaj Auto", product: "Sheet Metal Parts", qty: 800, orderDate: "07 Jun", requiredDate: "12 Jun", status: "delivered", value: "₹4,16,000", delivery: "11 Jun" },
-  { id: "ORD-2846", client: "Hero MotoCorp", product: "Steel Tubes", qty: 300, orderDate: "06 Jun", requiredDate: "10 Jun", status: "delivered", value: "₹1,08,000", delivery: "09 Jun" },
-];
-
-const INITIAL_SUPPLIER_ORDERS: SupplierOrder[] = [
-  { id: "PO-2847", supplier: "SteelCorp Ltd.", material: "Steel Sheet 2mm", qty: "500 kg", orderDate: "10 Jun", expectedDel: "12 Jun", actualDel: "12 Jun", cost: "₹36,000", status: "delivered" },
-  { id: "PO-2848", supplier: "AluminCo", material: "Aluminium Strip", qty: "200 kg", orderDate: "09 Jun", expectedDel: "12 Jun", actualDel: "–", cost: "₹37,000", status: "in-production" },
-  { id: "PO-2849", supplier: "CopperPrime", material: "Copper Wire", qty: "100 kg", orderDate: "08 Jun", expectedDel: "09 Jun", actualDel: "–", cost: "₹62,000", status: "dispatched" },
-  { id: "PO-2850", supplier: "MetalTech India", material: "Steel Tube 4mm", qty: "300 kg", orderDate: "07 Jun", expectedDel: "11 Jun", actualDel: "–", cost: "₹20,400", status: "pending" },
-];
-
-const SUPPLIERS = [
-  { name: "SteelCorp Ltd.", rating: 4.8, delivery: "2 days", reliability: "98%", materials: "Steel Sheet, Steel Tube" },
-  { name: "AluminCo", rating: 4.6, delivery: "3 days", reliability: "95%", materials: "Aluminium Strip, Aluminium Sheet" },
-  { name: "CopperPrime", rating: 4.9, delivery: "1 day", reliability: "99%", materials: "Copper Wire, Copper Sheet" },
-  { name: "MetalTech India", rating: 4.2, delivery: "4 days", reliability: "91%", materials: "Steel Sheet, Steel Tube" },
-];
-
-const fulfillmentTrend = [
-  { month: "Jan", rate: 91 }, { month: "Feb", rate: 88 }, { month: "Mar", rate: 94 },
-  { month: "Apr", rate: 92 }, { month: "May", rate: 96 }, { month: "Jun", rate: 97 },
-];
-
-const supplyChainFlow = [
-  { label: "Supplier", sub: "Raw Material Supply", count: "4 active", color: "#4E342E", icon: "📦" },
-  { label: "DVS Industries", sub: "Production & QC", count: "24 in production", color: "#A52A2A", icon: "🏭" },
-  { label: "Client", sub: "Order Fulfillment", count: "6 orders active", color: "#1565C0", icon: "🏢" },
-];
-
 /* ── Helpers ── */
+function parseMoney(value: string): string | null {
+  const normalized = value.replace(/[₹,\s]/g, "");
+  return normalized && /^\d+(\.\d{1,2})?$/.test(normalized) ? normalized : null;
+}
+
+function parseQuantity(value: string): { quantity: string; unit: string | null } {
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?$/);
+  return { quantity: match?.[1] ?? value.trim(), unit: match?.[2] ?? null };
+}
+
 function downloadCSV(filename: string, rows: string[][]) {
   const csv = rows.map((r) => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -93,9 +65,11 @@ function Modal({ title, onClose, children, wide = false }: { title: string; onCl
 }
 
 /* ── PO Creation Modal ── */
-function POModal({ prefill, suppliers, onClose, onSubmit }: {
+function POModal({ prefill, suppliers, suppliersLoading, suppliersError, onClose, onSubmit }: {
   prefill?: { material: string; qty: number; cost: number; supplier: string };
   suppliers: SupplierDto[];
+  suppliersLoading: boolean;
+  suppliersError: boolean;
   onClose: () => void;
   onSubmit: (po: Omit<SupplierOrder, "id" | "orderDate" | "actualDel">) => Promise<void>;
 }) {
@@ -104,7 +78,7 @@ function POModal({ prefill, suppliers, onClose, onSubmit }: {
     material: prefill?.material || "",
     qty: prefill?.qty ? `${prefill.qty} kg` : "",
     cost: prefill?.cost ? `₹${(prefill.qty || 0) * prefill.cost}` : "",
-    expectedDel: "",
+      expectedDel: "",
   });
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -120,13 +94,11 @@ function POModal({ prefill, suppliers, onClose, onSubmit }: {
         </div>
         <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem" }}>Purchase Order Submitted</h3>
         <p style={{ fontSize: "0.875rem", color: "#7A6C6A", marginBottom: "1rem" }}>
-          PO sent to <strong>{form.supplier}</strong> for <strong>{form.material}</strong>.
+          Purchase order saved for <strong>{form.supplier}</strong> and <strong>{form.material}</strong>.
           Expected delivery: <strong>{form.expectedDel}</strong>.
         </p>
         <div className="p-4 rounded-xl text-left mb-4" style={{ background: "#F9F6F5", border: "1px solid #E8E2E0" }}>
-          <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7A6C6A", marginBottom: "0.5rem" }}>SUPPLIER NOTIFIED</p>
-          <p style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>📧 Email confirmation sent to {form.supplier}</p>
-          <p style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>📋 PO record created in Supplier Orders</p>
+          <p style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>Purchase order record created in Supplier Orders.</p>
         </div>
         <button onClick={onClose} style={{ padding: "0.625rem 2rem", borderRadius: "0.5rem", background: "#A52A2A", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}>Done</button>
       </div>
@@ -136,6 +108,9 @@ function POModal({ prefill, suppliers, onClose, onSubmit }: {
   return (
     <Modal title="Create Purchase Order" onClose={onClose} wide>
       <div className="flex flex-col gap-3.5">
+        {suppliersLoading && <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>Loading suppliers...</p>}
+        {suppliersError && <p style={{ fontSize: "0.8rem", color: "#C0392B" }}>Unable to load suppliers.</p>}
+        {!suppliersLoading && !suppliersError && suppliers.length === 0 && <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>No suppliers available.</p>}
         <div>
           <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>Select Supplier *</label>
           <div className="grid grid-cols-2 gap-2">
@@ -153,7 +128,7 @@ function POModal({ prefill, suppliers, onClose, onSubmit }: {
           { label: "Material *", key: "material", placeholder: "e.g. Steel Sheet 2mm" },
           { label: "Quantity *", key: "qty", placeholder: "e.g. 500 kg" },
           { label: "Total Cost (₹)", key: "cost", placeholder: "e.g. ₹36,000" },
-          { label: "Expected Delivery *", key: "expectedDel", placeholder: "e.g. 14 Jun", type: "text" },
+          { label: "Expected Delivery *", key: "expectedDel", placeholder: "", type: "date" },
         ].map((f) => (
           <div key={f.key}>
             <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>{f.label}</label>
@@ -245,15 +220,20 @@ function OrderDetailModal({ order, onClose, onApprove, onDispatch }: {
 }
 
 /* ── Dispatch Modal ── */
-function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onClose: () => void; onConfirm: () => void }) {
-  const [step, setStep] = useState<"confirm" | "generating" | "done">("confirm");
-  const dispatchNo = `DSP-${Math.floor(1000 + Math.random() * 9000)}`;
-  const challanNo = `DC-${Math.floor(10000 + Math.random() * 90000)}`;
-  const invoiceNo = `INV-DVS-${Math.floor(1000 + Math.random() * 9000)}`;
+function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onClose: () => void; onConfirm: () => Promise<void> }) {
+  const [step, setStep] = useState<"confirm" | "saving" | "done">("confirm");
+  const [error, setError] = useState("");
 
-  const handleDispatch = () => {
-    setStep("generating");
-    setTimeout(() => { setStep("done"); onConfirm(); }, 2000);
+  const handleDispatch = async () => {
+    setStep("saving");
+    setError("");
+    try {
+      await onConfirm();
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dispatch update failed.");
+      setStep("confirm");
+    }
   };
 
   return (
@@ -264,23 +244,11 @@ function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onCl
             <div className="flex items-start gap-2">
               <AlertCircle size={16} color="#F57F17" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
               <p style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>
-                You are about to dispatch <strong>{order.id}</strong> — <strong>{order.qty} pcs</strong> of <strong>{order.product}</strong> to <strong>{order.client}</strong>. This will generate a dispatch note, delivery challan, and invoice.
+                You are about to update the dispatch status for <strong>{order.id}</strong> — <strong>{order.qty} pcs</strong> of <strong>{order.product}</strong> to <strong>{order.client}</strong>.
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { icon: FileText, label: "Dispatch Note", desc: "Auto-generated" },
-              { icon: Package, label: "Delivery Challan", desc: "Auto-generated" },
-              { icon: Printer, label: "Invoice", desc: "Auto-generated" },
-            ].map((d) => (
-              <div key={d.label} className="text-center p-4 rounded-xl" style={{ background: "#F9F6F5", border: "1px solid #E8E2E0" }}>
-                <d.icon size={22} color="#A52A2A" style={{ margin: "0 auto 0.5rem" }} />
-                <p style={{ fontSize: "0.775rem", fontWeight: 600, color: "#1C1C1C" }}>{d.label}</p>
-                <p style={{ fontSize: "0.7rem", color: "#7A6C6A" }}>{d.desc}</p>
-              </div>
-            ))}
-          </div>
+          {error && <p style={{ color: "#C0392B", fontSize: "0.8rem" }}>{error}</p>}
           <div className="flex gap-2">
             <button onClick={onClose} style={{ flex: 1, padding: "0.625rem", border: "1px solid #E8E2E0", borderRadius: "0.5rem", background: "#fff", cursor: "pointer" }}>Cancel</button>
             <button onClick={handleDispatch} style={{ flex: 2, padding: "0.625rem", border: "none", borderRadius: "0.5rem", background: "#A52A2A", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -289,11 +257,10 @@ function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onCl
           </div>
         </div>
       )}
-      {step === "generating" && (
+      {step === "saving" && (
         <div className="text-center py-8">
           <div className="w-12 h-12 rounded-full border-4 border-red-100 border-t-red-700 animate-spin mx-auto mb-4" />
-          <p style={{ fontWeight: 600, color: "#1C1C1C" }}>Generating documents...</p>
-          <p style={{ fontSize: "0.8rem", color: "#7A6C6A", marginTop: "0.5rem" }}>Dispatch note · Delivery challan · Invoice</p>
+          <p style={{ fontWeight: 600, color: "#1C1C1C" }}>Updating dispatch status...</p>
         </div>
       )}
       {step === "done" && (
@@ -302,29 +269,8 @@ function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onCl
             <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#E8F5E9" }}>
               <CheckCircle2 size={32} color="#2E7D32" />
             </div>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem" }}>Order Dispatched Successfully</h3>
-            <p style={{ fontSize: "0.875rem", color: "#7A6C6A" }}>All documents generated. Client notified.</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            {[
-              { label: "Dispatch Note", no: dispatchNo, icon: FileText },
-              { label: "Delivery Challan", no: challanNo, icon: Package },
-              { label: "Invoice", no: invoiceNo, icon: Printer },
-            ].map((d) => (
-              <div key={d.label} className="flex items-center justify-between p-3 rounded-xl" style={{ background: "#F9F6F5", border: "1px solid #E8E2E0" }}>
-                <div className="flex items-center gap-2">
-                  <d.icon size={16} color="#A52A2A" />
-                  <div>
-                    <p style={{ fontSize: "0.8rem", fontWeight: 600 }}>{d.label}</p>
-                    <p style={{ fontSize: "0.72rem", color: "#7A6C6A", fontFamily: "monospace" }}>{d.no}</p>
-                  </div>
-                </div>
-                <button onClick={() => downloadCSV(`${d.no}.csv`, [[d.label, d.no, order.id, order.client, order.product, String(order.qty), order.value]])}
-                  style={{ fontSize: "0.72rem", color: "#1565C0", background: "#E3F2FD", border: "none", padding: "0.25rem 0.625rem", borderRadius: "0.375rem", cursor: "pointer", fontWeight: 600 }}>
-                  Download
-                </button>
-              </div>
-            ))}
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem" }}>Dispatch status updated successfully.</h3>
+            <p style={{ fontSize: "0.875rem", color: "#7A6C6A" }}>No dispatch documents or notifications were generated by this action.</p>
           </div>
           <button onClick={onClose} style={{ padding: "0.625rem", border: "none", borderRadius: "0.5rem", background: "#A52A2A", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
             Close
@@ -336,7 +282,7 @@ function DispatchModal({ order, onClose, onConfirm }: { order: ClientOrder; onCl
 }
 
 /* ── New Client Order Modal ── */
-function NewClientOrderModal({ clients, onClose, onSubmit }: { clients: ClientDto[]; onClose: () => void; onSubmit: (o: ClientOrder) => Promise<void> }) {
+function NewClientOrderModal({ clients, clientsLoading, clientsError, onClose, onSubmit }: { clients: ClientDto[]; clientsLoading: boolean; clientsError: boolean; onClose: () => void; onSubmit: (o: ClientOrder) => Promise<void> }) {
   const [form, setForm] = useState({ client: "", product: "", qty: "", requiredDate: "", value: "" });
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -351,7 +297,7 @@ function NewClientOrderModal({ clients, onClose, onSubmit }: { clients: ClientDt
           <CheckCircle2 size={32} color="#2E7D32" />
         </div>
         <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem" }}>Order Created</h3>
-        <p style={{ fontSize: "0.875rem", color: "#7A6C6A" }}>Order confirmation sent to {form.client}.</p>
+        <p style={{ fontSize: "0.875rem", color: "#7A6C6A" }}>Order record saved for {form.client}.</p>
         <button onClick={onClose} style={{ marginTop: "1.5rem", padding: "0.625rem 2rem", borderRadius: "0.5rem", background: "#A52A2A", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}>Done</button>
       </div>
     </Modal>
@@ -363,6 +309,9 @@ function NewClientOrderModal({ clients, onClose, onSubmit }: { clients: ClientDt
   return (
     <Modal title="Create Client Order" onClose={onClose}>
       <div className="flex flex-col gap-3.5">
+        {clientsLoading && <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>Loading clients...</p>}
+        {clientsError && <p style={{ fontSize: "0.8rem", color: "#C0392B" }}>Unable to load clients.</p>}
+        {!clientsLoading && !clientsError && clients.length === 0 && <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>No clients available.</p>}
         {[
           { label: "Client Name *", key: "client", placeholder: "e.g. Reliance Eng." },
           { label: "Product / Part *", key: "product", placeholder: "e.g. Steel Frames 2mm" },
@@ -413,6 +362,14 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
   const [clients, setClients]               = useState<ClientDto[]>([]);
   const [suppliers, setSuppliers]           = useState<SupplierDto[]>([]);
   const [apiStats, setApiStats]             = useState<OrderStatistics | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [suppliersLoading, setSuppliersLoading] = useState(true);
+  const [clientsLoading, setClientsLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState(false);
+  const [suppliersError, setSuppliersError] = useState(false);
+  const [clientsError, setClientsError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
   const [showNewOrder, setShowNewOrder]     = useState(false);
   const [showNewPO, setShowNewPO]           = useState(false);
   const [selectedOrder, setSelectedOrder]   = useState<ClientOrder | null>(null);
@@ -421,6 +378,8 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
 
   // ── Load real data ──────────────────────────────────────────────────────────
   const loadAll = async (): Promise<void> => {
+    setOrdersLoading(true); setSuppliersLoading(true); setClientsLoading(true); setStatsLoading(true);
+    setOrdersError(false); setSuppliersError(false); setClientsError(false); setStatsError(false);
     const [coRes, poRes, statsRes, clientRes, supplierRes] = await Promise.all([
       getClientOrders({ pageSize: 50, sortOrder: "desc" }).catch(() => null),
       getPurchaseOrders({ pageSize: 50, sortOrder: "desc" }).catch(() => null),
@@ -429,9 +388,9 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       getSuppliers({ pageSize: 100 }).catch(() => null),
     ]);
 
-    setClientOrders(coRes?.data.map(o => ({
+        if (coRes) setClientOrders(coRes.data.map(o => ({
           id: o.orderNumber,
-          client: o.client.name,
+          client: o.clientName,
           product: o.product,
           qty: o.quantity,
           orderDate: new Date(o.orderDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
@@ -441,10 +400,10 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
           dispatch: o.dispatchDate ? new Date(o.dispatchDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : undefined,
           delivery: o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : undefined,
           _apiId: o.id,
-        })) ?? []);
-    setSupplierOrders(poRes?.data.map(p => ({
+        }))); else setOrdersError(true);
+    if (poRes) setSupplierOrders(poRes.data.map(p => ({
           id: p.poNumber,
-          supplier: p.supplier.name,
+          supplier: p.supplierName,
           material: p.material,
           qty: p.quantity,
           orderDate: new Date(p.orderDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
@@ -453,10 +412,11 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
           cost: p.totalCost ? `₹${parseFloat(p.totalCost).toLocaleString("en-IN")}` : "–",
           status: p.status.toLowerCase().replace("_", "-"),
           _apiId: p.id,
-        })) ?? []);
-    setApiStats(statsRes);
-    setClients(clientRes?.data ?? []);
-    setSuppliers(supplierRes?.data ?? []);
+        }))); else setOrdersError(true);
+      if (statsRes) setApiStats(statsRes); else setStatsError(true);
+      if (clientRes) setClients(clientRes.data); else setClientsError(true);
+      if (supplierRes) setSuppliers(supplierRes.data); else setSuppliersError(true);
+      setOrdersLoading(false); setSuppliersLoading(false); setClientsLoading(false); setStatsLoading(false);
   };
 
   useEffect(() => { loadAll(); }, []);
@@ -472,7 +432,7 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       if (!order?._apiId) throw new Error("This order is not stored in the database.");
       await approveClientOrder(order._apiId);
       await loadAll();
-      showSonnerToast.success(`Order ${id} approved — production scheduled`);
+      showSonnerToast.success(`Client order ${id} approved successfully.`);
     } catch (err) {
       showSonnerToast.error(err instanceof Error ? err.message : "Order approval failed.");
     }
@@ -484,10 +444,9 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       if (!order?._apiId) throw new Error("This order is not stored in the database.");
       await dispatchClientOrder(order._apiId, {});
       await loadAll();
-      setDispatchOrder(null);
-      showSonnerToast.success(`Order ${id} dispatched — client notified`);
+      showSonnerToast.success("Dispatch status updated successfully.");
     } catch (err) {
-      showSonnerToast.error(err instanceof Error ? err.message : "Order dispatch failed.");
+      throw err;
     }
   };
 
@@ -499,11 +458,11 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       product: o.product,
       quantity: o.qty,
       unit: "pcs",
-      value: o.value.replace(/[₹,\s]/g, "") || null,
+      value: parseMoney(o.value) ?? null,
       requiredDate: o.requiredDate ? new Date(o.requiredDate).toISOString() : null,
     });
     await loadAll();
-    showSonnerToast.success(`Order ${o.id} created for ${o.client}`);
+    showSonnerToast.success("Client order saved successfully.");
   };
 
   const handleAddPO = async (po: Omit<SupplierOrder, "id" | "orderDate" | "actualDel">) => {
@@ -512,15 +471,15 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
     await createPurchaseOrder({
       supplierId: supplier.id,
       material: po.material,
-      quantity: po.qty,
-      unit: po.qty.match(/[a-zA-Z]+/)?.[0] ?? null,
-      totalCost: po.cost.replace(/[₹,\s]/g, "") || null,
+      quantity: parseQuantity(po.qty).quantity,
+      unit: parseQuantity(po.qty).unit,
+      totalCost: parseMoney(po.cost) ?? null,
       expectedDelivery: po.expectedDel ? new Date(po.expectedDel).toISOString() : null,
       notes: null,
     });
     await loadAll();
     setPendingPO(null);
-    showSonnerToast.success(`PO ${id} created — supplier notified`);
+    showSonnerToast.success("Purchase order saved successfully.");
   };
 
   const handleExport = () => {
@@ -536,8 +495,8 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
 
   return (
     <>
-    {showNewOrder && <NewClientOrderModal clients={clients} onClose={() => setShowNewOrder(false)} onSubmit={handleAddOrder} />}
-    {showNewPO && <POModal suppliers={suppliers} prefill={poPrefill} onClose={() => { setShowNewPO(false); setPendingPO(null); }} onSubmit={handleAddPO} />}
+    {showNewOrder && <NewClientOrderModal clients={clients} clientsLoading={clientsLoading} clientsError={clientsError} onClose={() => setShowNewOrder(false)} onSubmit={handleAddOrder} />}
+    {showNewPO && <POModal suppliers={suppliers} suppliersLoading={suppliersLoading} suppliersError={suppliersError} prefill={poPrefill} onClose={() => { setShowNewPO(false); setPendingPO(null); }} onSubmit={handleAddPO} />}
     {selectedOrder && !dispatchOrder && (
       <OrderDetailModal
         order={selectedOrder}
@@ -567,10 +526,10 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <KPICard label="Active Client Orders" value={apiStats ? apiStats.totalClientOrders - (apiStats.deliveredOrders ?? 0) : clientOrders.filter((o) => !["delivered"].includes(o.status)).length} sub="in progress" accent="#A52A2A" />
-        <KPICard label="Pending Supplier POs" value={apiStats?.pendingPOs ?? supplierOrders.filter((o) => o.status === "pending").length} sub="awaiting processing" accent="#E65100" trendDir="down" />
-        <KPICard label="Dispatched Today" value={apiStats?.dispatchedOrders ?? clientOrders.filter((o) => o.status === "dispatched").length} trend="+1 vs yesterday" trendDir="up" accent="#1565C0" />
-        <KPICard label="Fulfillment Rate" value={apiStats?.fulfillmentRate ?? "97.2%"} trend="+1.8% MoM" trendDir="up" accent="#2E7D32" />
+        <KPICard label="Active Client Orders" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.clientOrders.total - apiStats.clientOrders.delivered - apiStats.clientOrders.cancelled) : "Unavailable"} sub="in progress" accent="#A52A2A" />
+        <KPICard label="Pending Supplier POs" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.purchaseOrders.pending) : "Unavailable"} sub="awaiting processing" accent="#E65100" trendDir="down" />
+        <KPICard label="Dispatched Orders" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.clientOrders.dispatched) : "Unavailable"} accent="#1565C0" />
+        <KPICard label="Fulfillment Rate" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats?.fulfillmentRate ?? "Unavailable"} accent="#2E7D32" />
       </div>
 
       <TabBar
@@ -589,13 +548,14 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
           <Card>
             <CardHeader
               title="Client Orders"
-              subtitle={`${clientOrders.length} total orders`}
+              subtitle={ordersLoading ? "Loading orders..." : ordersError ? "Unable to load orders" : `${clientOrders.length} total orders`}
               actions={<Btn size="sm" onClick={() => setShowNewOrder(true)}><Plus size={13} /> New Order</Btn>}
             />
             <DataTable
               searchable
               paginate={8}
               exportFilename="DVS_Client_Orders.csv"
+              emptyMsg={ordersLoading ? "Loading client orders..." : ordersError ? "Unable to load client orders." : "No client orders available."}
               columns={[
                 { key: "id", label: "Order ID" },
                 { key: "client", label: "Client" },
@@ -655,6 +615,7 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
               searchable
               paginate={8}
               exportFilename="DVS_Purchase_Orders.csv"
+              emptyMsg={ordersLoading ? "Loading purchase orders..." : ordersError ? "Unable to load purchase orders." : "No purchase orders available."}
               rows={supplierOrders.map((o) => ({
                 id: <span style={{ fontSize: "0.775rem", fontFamily: "JetBrains Mono, monospace", color: "#4E342E", fontWeight: 600 }}>{o.id}</span>,
                 supplier: <span style={{ fontWeight: 500 }}>{o.supplier}</span>,
@@ -674,65 +635,27 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
         {tab === "supply-chain" && (
           <div>
             <Card className="mb-5">
-              <CardHeader title="Supply Chain Flow" subtitle="Supplier → DVS Industries → Client" />
+              <CardHeader title="Supply Chain Flow" subtitle="Unavailable from current order APIs" />
               <div className="p-8">
-                <div className="flex flex-col md:flex-row items-center justify-center gap-0">
-                  {supplyChainFlow.map((node, i) => (
-                    <div key={node.label} className="flex flex-col md:flex-row items-center">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-3 text-3xl"
-                          style={{ background: `${node.color}12`, border: `2px solid ${node.color}30` }}>
-                          {node.icon}
-                        </div>
-                        <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#1C1C1C" }}>{node.label}</p>
-                        <p style={{ fontSize: "0.75rem", color: "#7A6C6A", marginTop: "0.2rem" }}>{node.sub}</p>
-                        <span className="mt-2 px-3 py-1 rounded-full"
-                          style={{ fontSize: "0.7rem", background: `${node.color}12`, color: node.color, fontWeight: 600 }}>
-                          {node.count}
-                        </span>
-                      </div>
-                      {i < supplyChainFlow.length - 1 && (
-                        <div className="flex items-center justify-center my-4 md:my-0 md:mx-6" style={{ color: "#9A8A88" }}>
-                          <div className="hidden md:block w-12 h-px" style={{ background: "#D4BFBB" }} />
-                          <ArrowRight size={20} color="#A52A2A" />
-                          <div className="hidden md:block w-12 h-px" style={{ background: "#D4BFBB" }} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <p style={{ fontSize: "0.875rem", color: "#7A6C6A", textAlign: "center" }}>No supply-chain flow data available.</p>
               </div>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <Card>
-                <CardHeader title="Order Fulfillment Rate" subtitle="Monthly trend" />
+                <CardHeader title="Order Fulfillment Rate" subtitle="Trend unavailable" />
                 <div className="p-5">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={fulfillmentTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0ECEB" />
-                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} domain={[80, 100]} />
-                      <Tooltip contentStyle={{ fontSize: "0.8rem" }} formatter={(v) => [`${v}%`]} />
-                      <Line type="monotone" dataKey="rate" stroke="#A52A2A" strokeWidth={2} name="Fulfillment %" dot={{ r: 4, fill: "#A52A2A" }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <p style={{ fontSize: "0.8375rem", color: "#7A6C6A" }}>No fulfillment trend data available.</p>
                 </div>
               </Card>
 
               <Card>
                 <CardHeader title="Supply Chain Analytics" />
                 <div className="p-5 flex flex-col gap-3">
-                  {[
-                    { label: "On-Time Delivery Rate", value: "94.2%", color: "#2E7D32" },
-                    { label: "Avg Supplier Lead Time", value: "2.8 days", color: "#1565C0" },
-                    { label: "Order Processing Time", value: "1.2 days", color: "#4E342E" },
-                    { label: "Client Satisfaction Score", value: "4.7 / 5.0", color: "#2E7D32" },
-                    { label: "PO Approval Rate", value: "98.1%", color: "#2E7D32" },
-                  ].map((m) => (
-                    <div key={m.label} className="flex items-center justify-between py-2" style={{ borderBottom: "1px solid #F0ECEB" }}>
-                      <span style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>{m.label}</span>
-                      <span style={{ fontSize: "0.9rem", fontWeight: 700, color: m.color }}>{m.value}</span>
+                  {["On-Time Delivery Rate", "Avg Supplier Lead Time", "Order Processing Time", "Client Satisfaction Score", "PO Approval Rate"].map((label) => (
+                    <div key={label} className="flex items-center justify-between py-2" style={{ borderBottom: "1px solid #F0ECEB" }}>
+                      <span style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>{label}</span>
+                      <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#7A6C6A" }}>Unavailable</span>
                     </div>
                   ))}
                 </div>

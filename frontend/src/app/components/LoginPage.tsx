@@ -7,7 +7,7 @@ import {
 import { login as apiLogin, type FrontendRole } from "../../lib/auth";
 import api from "../../lib/api";
 
-type Role = "admin" | "supplier" | "client" | "production" | "quality" | "store";
+type Role = "admin" | "supplier" | "client" | "production" | "store";
 type AuthMode = "login" | "signup" | "forgot";
 
 interface LoginPageProps {
@@ -38,17 +38,6 @@ const roles = [
     desc: "Production module only",
     permissions: ["Production Performance", "Workforce Management", "Attendance Tracking", "Production Reports"],
     tagline: "Dedicated access to production operations",
-  },
-  {
-    id: "quality" as Role,
-    label: "Quality",
-    icon: PackageCheck,
-    color: "#1565C0",
-    bgColor: "#F0F4FF",
-    borderColor: "#C5CAE9",
-    desc: "Quality & inventory only",
-    permissions: ["Inventory Management", "Quality Control", "Scrap Analytics", "Material Inspection"],
-    tagline: "Focused access to quality and inventory",
   },
   {
     id: "store" as Role,
@@ -84,15 +73,6 @@ const roles = [
     tagline: "Browse products and manage your orders seamlessly",
   },
 ];
-
-const mockUsers: Record<Role, { email: string; password: string }> = {
-  admin: { email: "admin@dvsindustries.com", password: "Admin@2026" },
-  production: { email: "production@dvsindustries.com", password: "Production@2026" },
-  quality: { email: "quality@dvsindustries.com", password: "Quality@2026" },
-  store: { email: "store@dvsindustries.com", password: "Store@2026" },
-  supplier: { email: "supplier@steelcorp.com", password: "Supplier@2026" },
-  client: { email: "client@reliance-eng.com", password: "Client@2026" },
-};
 
 function PasswordStrengthBar({ password }: { password: string }) {
   if (!password) return null;
@@ -157,22 +137,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
   };
 
   const handleSignup = async () => {
-    setError(""); setSuccess("");
-    if (!name || !email || !password || !confirmPw) { setError("Please fill in all required fields."); return; }
-    if (password !== confirmPw) { setError("Passwords do not match."); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
-    setLoading(true);
-    try {
-      await api.post("/auth/register", { fullName: name, email, password });
-      setSuccess("Account request submitted. Awaiting DVS Industries admin approval. You will receive a confirmation email within 24 hours.");
-    } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "message" in err
-        ? (err as { message: string }).message
-        : "Registration failed. Please try again.";
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
+    setError("Registration is managed by an administrator.");
   };
 
   const handleForgot = async () => {
@@ -236,7 +201,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
           {/* Role selector — grouped */}
           <div className="mb-6 flex flex-col gap-4">
             {[
-              { groupLabel: "DVS LOGIN", groupIds: ["admin", "production", "quality", "store"] as Role[] },
+              { groupLabel: "DVS LOGIN", groupIds: ["admin", "production", "store"] as Role[] },
               { groupLabel: "PARTNER LOGIN", groupIds: ["supplier", "client"] as Role[] },
             ].map((group) => (
               <div key={group.groupLabel}>
@@ -325,7 +290,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
             {/* Mobile role tabs — grouped */}
             <div className="flex flex-col gap-3 mb-5">
               {[
-                { groupLabel: "DVS LOGIN", ids: ["admin", "production", "quality", "store"] as Role[] },
+                { groupLabel: "DVS LOGIN", ids: ["admin", "production", "store"] as Role[] },
                 { groupLabel: "PARTNER LOGIN", ids: ["supplier", "client"] as Role[] },
               ].map((group) => (
                 <div key={group.groupLabel}>
@@ -376,7 +341,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                       {role.label} Portal
                     </p>
                     <h1 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#1C1C1C", lineHeight: 1.2 }}>
-                      {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password"}
+                      {mode === "login" ? "Welcome Back" : mode === "signup" ? "Registration unavailable" : "Reset Password"}
                     </h1>
                   </div>
                 </div>
@@ -384,7 +349,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                   {mode === "login"
                     ? `Sign in to access your ${role.label} dashboard`
                     : mode === "signup"
-                    ? "Register for DVS Industries platform access"
+                    ? "Registration is managed by an administrator."
                     : "We'll send a reset link to your email"}
                 </p>
               </div>
@@ -437,7 +402,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
               )}
 
               {/* Fields */}
-              <div className="flex flex-col gap-3.5">
+              {mode !== "signup" && <div className="flex flex-col gap-3.5">
                 {mode === "signup" && (
                   <div>
                     <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.35rem" }}>Full Name *</label>
@@ -511,7 +476,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                     {confirmPw && confirmPw !== password && <p style={{ fontSize: "0.72rem", color: "#C0392B", marginTop: "0.25rem" }}>Passwords do not match</p>}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {/* Forgot password link */}
               {mode === "login" && (
@@ -547,7 +512,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                 ) : mode === "login" ? (
                   <> Sign In <ChevronRight size={17} /></>
                 ) : mode === "signup" ? (
-                  <> Create Account <ChevronRight size={17} /></>
+                  <> Registration unavailable <ChevronRight size={17} /></>
                 ) : (
                   <> Send Reset Link <ChevronRight size={17} /></>
                 )}
@@ -564,25 +529,12 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                 </button>
               )}
 
-              {/* Demo credentials */}
-              {mode === "login" && (
+              {mode === "signup" && (
                 <div
                   className="mt-5 p-3.5 rounded-xl"
                   style={{ background: "#F7F3F2", border: "1px solid #EAE2DF" }}
                 >
-                  <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9A8A88", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
-                    Demo Credentials
-                  </p>
-                  <div className="flex flex-col gap-1">
-                    <p style={{ fontSize: "0.775rem", color: "#4A4A4A" }}>
-                      <span style={{ color: "#7A6C6A" }}>Email: </span>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", color: "#1C1C1C", fontSize: "0.75rem" }}>{mockUsers[selectedRole].email}</span>
-                    </p>
-                    <p style={{ fontSize: "0.775rem", color: "#4A4A4A" }}>
-                      <span style={{ color: "#7A6C6A" }}>Password: </span>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", color: "#1C1C1C", fontSize: "0.75rem" }}>{mockUsers[selectedRole].password}</span>
-                    </p>
-                  </div>
+                  <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>Registration is managed by an administrator.</p>
                 </div>
               )}
             </div>

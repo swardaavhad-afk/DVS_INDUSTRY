@@ -28,6 +28,8 @@ export const ROLES = {
   STORE: 'STORE',
   PRODUCTION: 'PRODUCTION',
   SALES: 'SALES',
+  SUPPLIER: 'SUPPLIER',
+  CLIENT: 'CLIENT',
 } as const;
 
 export type RoleName = (typeof ROLES)[keyof typeof ROLES];

@@ -3,6 +3,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
+const backendUrl = process.env.VITE_BACKEND_URL ?? 'http://localhost:3000'
 
 function figmaAssetResolver() {
   return {
@@ -35,13 +36,13 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target:      'http://localhost:3000',
+        target:      backendUrl,
         changeOrigin: true,
         secure:       false,
       },
       // Also proxy /uploads (profile images served by backend)
       '/uploads': {
-        target:      'http://localhost:3000',
+        target:      backendUrl,
         changeOrigin: true,
         secure:       false,
       },

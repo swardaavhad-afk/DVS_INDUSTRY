@@ -19,7 +19,7 @@ function SettingsPage() {
 
   const handleSave = () => {
     setSaved(true);
-    toast.success("Settings saved successfully");
+    toast.info("Settings updated for this session only. Persistence is unavailable.");
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -112,10 +112,10 @@ function SettingsPage() {
               ["Platform Version", "DVS SmartFactory v2.4.1"],
               ["Build Date", "14 July 2026"],
               ["Database", "PostgreSQL 15 (Cloud)"],
-              ["API Status", "● Online — 99.8% uptime"],
-              ["Last Backup", "Today 03:00 AM"],
-              ["Face Recognition API", "● Connected — Offline Mode"],
-              ["License", "Enterprise — Unlimited Users"],
+              ["API Status", "Unavailable — no runtime status source"],
+              ["Last Backup", "Unavailable — no backup status source"],
+              ["Face Recognition API", "Unavailable — no status source"],
+              ["License", "Unavailable — no license status source"],
             ].map(([k, v]) => (
               <div key={k} className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid #F5F0EF" }}>
                 <span style={{ fontSize: "0.8125rem", color: "#7A6C6A" }}>{k}</span>
@@ -133,7 +133,7 @@ function SettingsPage() {
         >
           {saved ? "✓ Saved" : "Save Changes"}
         </button>
-        <span style={{ fontSize: "0.8rem", color: "#9A8A88" }}>Changes apply immediately</span>
+        <span style={{ fontSize: "0.8rem", color: "#9A8A88" }}>UI-only changes; persistence is unavailable</span>
       </div>
     </div>
   );
@@ -144,7 +144,7 @@ const securitySections = new Set(["security", "security-live", "security-inciden
 const inventorySections = new Set(["inventory", "inventory-overview", "inventory-materials", "inventory-calculator", "inventory-scrap", "inventory-procurement"]);
 const orderSections = new Set(["orders", "orders-client", "orders-supplier", "orders-supply-chain"]);
 
-type UserRole = "admin" | "production" | "quality" | "store";
+type UserRole = "admin" | "production" | "store";
 
 interface AdminAppProps {
   onLogout: () => void | Promise<void>;
@@ -154,7 +154,6 @@ interface AdminAppProps {
 export function AdminApp({ onLogout, userRole }: AdminAppProps) {
   const getInitialSection = () => {
     if (userRole === "production") return "production";
-    if (userRole === "quality") return "inventory";
     if (userRole === "store") return "orders";
     return "dashboard";
   };
@@ -175,7 +174,6 @@ export function AdminApp({ onLogout, userRole }: AdminAppProps) {
     }
 
     if (userRole === "production") return <ProductionPage />;
-    if (userRole === "quality") return <InventoryPage onNavigate={setSection} />;
     if (userRole === "store") return <OrdersPage onNavigate={setSection} />;
 
     return <AdminDashboard onNavigate={setSection} />;
@@ -183,7 +181,7 @@ export function AdminApp({ onLogout, userRole }: AdminAppProps) {
 
   return (
     <ERPProvider>
-      <AppShell role="admin" userRole={userRole} activeSection={section} onSectionChange={setSection} onLogout={onLogout} notificationCount={6}>
+      <AppShell role="admin" userRole={userRole} activeSection={section} onSectionChange={setSection} onLogout={onLogout} notificationCount={0}>
         {renderSection()}
       </AppShell>
     </ERPProvider>

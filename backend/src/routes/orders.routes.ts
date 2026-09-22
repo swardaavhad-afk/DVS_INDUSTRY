@@ -36,8 +36,20 @@ const ALL_ROLES = [
   ROLES.STORE,
   ROLES.PRODUCTION,
   ROLES.SALES,
+  ROLES.SUPPLIER,
+  ROLES.CLIENT,
+] as const;
+const SUPPLIER_ORDER_READ_ROLES = [
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.HR,
+  ROLES.STORE,
+  ROLES.PRODUCTION,
+  ROLES.SALES,
+  ROLES.SUPPLIER,
 ] as const;
 const SALES_WRITE = [ROLES.ADMIN, ROLES.SALES, ROLES.MANAGER] as const;
+const CLIENT_WRITE = [...SALES_WRITE, ROLES.CLIENT] as const;
 const STORE_WRITE = [ROLES.ADMIN, ROLES.STORE, ROLES.MANAGER] as const;
 const ADMIN_MGR = [ROLES.ADMIN, ROLES.MANAGER] as const;
 const ADMIN_ONLY = [ROLES.ADMIN] as const;
@@ -52,7 +64,7 @@ router.get('/statistics', authorize(...ADMIN_MGR), asyncHandler(OrdersController
 /** GET /api/v1/orders/suppliers */
 router.get(
   '/suppliers',
-  authorize(...ALL_ROLES),
+  authorize(...SUPPLIER_ORDER_READ_ROLES),
   validateRequest({ query: supplierQuerySchema }),
   asyncHandler(OrdersController.getAllSuppliers),
 );
@@ -68,7 +80,7 @@ router.post(
 /** GET /api/v1/orders/suppliers/:id */
 router.get(
   '/suppliers/:id',
-  authorize(...ALL_ROLES),
+  authorize(...SUPPLIER_ORDER_READ_ROLES),
   validateRequest({ params: supplierIdParamSchema }),
   asyncHandler(OrdersController.getSupplierById),
 );
@@ -160,7 +172,7 @@ router.get(
 /** POST /api/v1/orders/client-orders */
 router.post(
   '/client-orders',
-  authorize(...SALES_WRITE),
+  authorize(...CLIENT_WRITE),
   validateRequest({ body: createClientOrderSchema }),
   asyncHandler(OrdersController.createClientOrder),
 );
@@ -176,7 +188,7 @@ router.get(
 /** PATCH /api/v1/orders/client-orders/:id */
 router.patch(
   '/client-orders/:id',
-  authorize(...SALES_WRITE),
+  authorize(...CLIENT_WRITE),
   validateRequest({ params: clientOrderIdParamSchema, body: updateClientOrderSchema }),
   asyncHandler(OrdersController.updateClientOrder),
 );
@@ -216,7 +228,7 @@ router.patch(
 /** PATCH /api/v1/orders/client-orders/:id/cancel */
 router.patch(
   '/client-orders/:id/cancel',
-  authorize(...SALES_WRITE),
+  authorize(...CLIENT_WRITE),
   validateRequest({ params: clientOrderIdParamSchema }),
   asyncHandler(OrdersController.cancelClientOrder),
 );
@@ -226,7 +238,7 @@ router.patch(
 /** GET /api/v1/orders/purchase-orders */
 router.get(
   '/purchase-orders',
-  authorize(...ALL_ROLES),
+  authorize(...SUPPLIER_ORDER_READ_ROLES),
   validateRequest({ query: purchaseOrderQuerySchema }),
   asyncHandler(OrdersController.getAllPurchaseOrders),
 );
@@ -242,7 +254,7 @@ router.post(
 /** GET /api/v1/orders/purchase-orders/:id */
 router.get(
   '/purchase-orders/:id',
-  authorize(...ALL_ROLES),
+  authorize(...SUPPLIER_ORDER_READ_ROLES),
   validateRequest({ params: purchaseOrderIdParamSchema }),
   asyncHandler(OrdersController.getPurchaseOrderById),
 );

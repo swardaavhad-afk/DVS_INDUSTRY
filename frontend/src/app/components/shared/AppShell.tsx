@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 export type UserRole = "admin" | "supplier" | "client";
-export type SystemUserRole = "admin" | "production" | "quality" | "store";
+export type SystemUserRole = "admin" | "production" | "store";
 
 interface NavItem {
   id: string;
@@ -32,11 +32,6 @@ const adminNavFlat: NavItem[] = [
 // Production role navigation (only production module)
 const productionNav: NavItem[] = [
   { id: "production", label: "Production", icon: Factory },
-];
-
-// Quality role navigation (only inventory module)
-const qualityNav: NavItem[] = [
-  { id: "inventory", label: "Inventory", icon: Package },
 ];
 
 // Store role navigation (only orders module)
@@ -73,7 +68,6 @@ const navByRole: Record<UserRole, NavItem[]> = {
 const roleLabels: Record<UserRole | SystemUserRole, string> = {
   admin: "Administrator",
   production: "Production",
-  quality: "Quality",
   store: "Store",
   supplier: "Supplier Portal",
   client: "Client Portal",
@@ -107,7 +101,6 @@ export function AppShell({ role, userRole, activeSection, onSectionChange, onLog
   const getNavigation = (): NavItem[] => {
     if (role === "admin" && userRole) {
       if (userRole === "production") return productionNav;
-      if (userRole === "quality") return qualityNav;
       if (userRole === "store") return storeNav;
       return adminNavFlat;
     }
@@ -322,7 +315,7 @@ export function AppShell({ role, userRole, activeSection, onSectionChange, onLog
                   </div>
                   <div style={{ maxHeight: "320px", overflowY: "auto" }}>
                     {erp.notifications.length === 0 ? (
-                      <p style={{ padding: "2rem", textAlign: "center", color: "#9A8A88", fontSize: "0.8rem" }}>No notifications</p>
+                      <p style={{ padding: "2rem", textAlign: "center", color: "#9A8A88", fontSize: "0.8rem" }}>Notifications unavailable — no notification backend is configured.</p>
                     ) : (
                       erp.notifications.slice(0, 10).map((n) => (
                         <div key={n.id} className="flex items-start gap-3 px-4 py-3" style={{ borderBottom: "1px solid #F7F3F2", background: n.read ? "transparent" : "#FDFBFB", opacity: n.read ? 0.75 : 1 }}>

@@ -70,27 +70,27 @@ export interface MaterialQuery {
 }
 
 export async function getMaterials(params?: MaterialQuery) {
-  const res = await api.get<{ success: true; data: MaterialDto[]; meta: PaginatedMeta }>('/inventory/materials', { params });
+  const res = await api.get<{ success: true; data: MaterialDto[]; meta: PaginatedMeta }>('/inventory', { params });
   return unwrapPaged(res);
 }
 
 export async function getMaterialById(id: number): Promise<MaterialDto> {
-  const res = await api.get<{ success: true; data: MaterialDto }>(`/inventory/materials/${id}`);
+  const res = await api.get<{ success: true; data: MaterialDto }>(`/inventory/${id}`);
   return unwrap(res);
 }
 
 export async function createMaterial(payload: Record<string, unknown>): Promise<MaterialDto> {
-  const res = await api.post<{ success: true; data: MaterialDto }>('/inventory/materials', payload);
+  const res = await api.post<{ success: true; data: MaterialDto }>('/inventory', payload);
   return unwrap(res);
 }
 
 export async function updateMaterial(id: number, payload: Record<string, unknown>): Promise<MaterialDto> {
-  const res = await api.patch<{ success: true; data: MaterialDto }>(`/inventory/materials/${id}`, payload);
+  const res = await api.patch<{ success: true; data: MaterialDto }>(`/inventory/${id}`, payload);
   return unwrap(res);
 }
 
 export async function deleteMaterial(id: number): Promise<void> {
-  await api.delete(`/inventory/materials/${id}`);
+  await api.delete(`/inventory/${id}`);
 }
 
 export async function adjustStock(materialId: number, payload: {
@@ -98,7 +98,7 @@ export async function adjustStock(materialId: number, payload: {
   referenceNo?: string | null; reason?: string | null;
   performedByName?: string | null; departmentName?: string | null;
 }): Promise<StockTransactionDto> {
-  const res = await api.post<{ success: true; data: StockTransactionDto }>(`/inventory/materials/${materialId}/transactions`, payload);
+  const res = await api.post<{ success: true; data: StockTransactionDto }>(`/inventory/${materialId}/stock`, payload);
   return unwrap(res);
 }
 

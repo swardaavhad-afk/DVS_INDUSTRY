@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Shield, Search, X } from "lucide-react";
 import { PageHeader, Card, CardHeader, StatusBadge, Btn, DataTable } from "../shared/UI";
 import { toast } from "sonner";
-import {
-  getUsers, createUser, updateUserRole, toggleUserActive, getRoles,
-  type UserDto, type RoleDto,
-} from "../../../lib/services/users.service";
+import { getRoles, type RoleDto } from "../../../lib/services/users.service";
 import { getAuditLogs } from "../../../lib/services/audit.service";
 
 interface User {
@@ -13,16 +10,6 @@ interface User {
   joined: string; lastLogin: string; status: string;
   _apiId?: number; _roleId?: number;
 }
-
-const initialUsers: User[] = [
-  { id: "USR-001", name: "Vikram Sharma", email: "vikram@dvsindustries.com", role: "admin", dept: "Management", joined: "01 Jan 2020", lastLogin: "12 Jun 09:22", status: "active" },
-  { id: "USR-002", name: "Priya Kapoor", email: "priya@dvsindustries.com", role: "admin", dept: "Operations", joined: "15 Mar 2021", lastLogin: "12 Jun 08:45", status: "active" },
-  { id: "USR-003", name: "SteelCorp Ltd.", email: "orders@steelcorp.com", role: "supplier", dept: "Steel", joined: "20 Jun 2022", lastLogin: "11 Jun 15:30", status: "active" },
-  { id: "USR-004", name: "AluminCo Pvt.", email: "supply@aluminco.com", role: "supplier", dept: "Aluminium", joined: "08 Aug 2022", lastLogin: "10 Jun 11:00", status: "active" },
-  { id: "USR-005", name: "Reliance Eng.", email: "orders@reliance-eng.com", role: "client", dept: "Automotive", joined: "10 Feb 2023", lastLogin: "12 Jun 07:30", status: "active" },
-  { id: "USR-006", name: "Tata Motors", email: "procurement@tatamotors.com", role: "client", dept: "Automotive", joined: "05 Mar 2023", lastLogin: "11 Jun 14:20", status: "active" },
-  { id: "USR-007", name: "Rajan Iyer", email: "rajan@dvsindustries.com", role: "admin", dept: "Security", joined: "11 Nov 2021", lastLogin: "09 Jun 16:00", status: "inactive" },
-];
 
 const roleColors: Record<string, string> = { admin: "#A52A2A", supplier: "#2E7D32", client: "#1565C0" };
 
@@ -55,9 +42,10 @@ export function UserManagementPage() {
   const [activeTab, setActiveTab]   = useState<"users" | "permissions" | "logs">("users");
   const [search, setSearch]         = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [users, setUsers]           = useState<User[]>(initialUsers);
+  const [users]           = useState<User[]>([]);
   const [roles, setRoles]           = useState<RoleDto[]>([]);
   const [auditLogs, setAuditLogs]   = useState<Array<{ time: string; user: string; action: string; type: string }>>([]);
+  const [dataError, setDataError]   = useState("");
   const [showAdd, setShowAdd]       = useState(false);
   const [editUser, setEditUser]     = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
@@ -66,80 +54,37 @@ export function UserManagementPage() {
   // ── Load from API ──────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      getUsers({ pageSize: 100 }).catch(() => null),
-      getRoles().catch(() => null),
-      getAuditLogs({ pageSize: 20, sortOrder: "desc" }).catch(() => null),
-    ]).then(([userRes, roleRes, logRes]) => {
+    Promise.allSettled([
+      getRoles(),
+      getAuditLogs({ pageSize: 20, sortOrder: "desc" }),
+    ]).then(([roleResult, logResult]) => {
       if (cancelled) return;
-      if (userRes && userRes.data.length > 0) {
-        setUsers(userRes.data.map(u => ({
-          id: `USR-${String(u.id).padStart(3, "0")}`,
-          name: u.fullName,
-          email: u.email,
-          role: u.role.name.toLowerCase(),
-          dept: u.employee?.employeeCode ?? "System",
-          joined: new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-          lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "Never",
-          status: u.isActive ? "active" : "inactive",
-          _apiId: u.id,
-          _roleId: u.roleId,
-        })));
-      }
-      if (roleRes && roleRes.length > 0) setRoles(roleRes);
-      if (logRes && logRes.data.length > 0) {
-        setAuditLogs(logRes.data.map(l => ({
+      if (roleResult.status === "fulfilled") setRoles(roleResult.value);
+      else setDataError("Unable to load backend roles. API error: " + (roleResult.reason instanceof Error ? roleResult.reason.message : "Unknown error"));
+      if (logResult.status === "fulfilled") {
+        setAuditLogs(logResult.value.data.map(l => ({
           time: new Date(l.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
           user: l.userEmail ?? "System",
           action: `${l.action} ${l.entity}${l.entityId ? ` #${l.entityId}` : ""} ${l.path ?? ""}`.trim(),
           type: l.action === "LOGIN" ? "info" : l.action === "DELETE" ? "critical" : l.statusCode && l.statusCode >= 400 ? "warn" : "info",
         })));
-      }
+      } else setDataError((current) => current ? `${current} Audit log API error: ${logResult.reason instanceof Error ? logResult.reason.message : "Unknown error"}` : "Unable to load audit logs. API error: " + (logResult.reason instanceof Error ? logResult.reason.message : "Unknown error"));
     });
     return () => { cancelled = true; };
   }, []);
 
-  const nextId = () => `USR-${String(users.length + 1).padStart(3, "0")}`;
-
   const handleAdd = async () => {
-    if (!newUser.name.trim() || !newUser.email.trim()) { toast.error("Please fill all required fields"); return; }
-    try {
-      const roleObj = roles.find(r => r.name.toLowerCase() === newUser.role) ?? roles[0];
-      const created = await createUser({ fullName: newUser.name, email: newUser.email, password: newUser.password || "Temp@1234", roleId: roleObj?.id ?? 1 });
-      const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
-      setUsers(prev => [...prev, { id: nextId(), name: created.fullName, email: created.email, role: created.role.name.toLowerCase(), dept: newUser.dept, joined: today, lastLogin: "Never", status: "active", _apiId: created.id }]);
-      toast.success("User added successfully");
-    } catch {
-      const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
-      setUsers(prev => [...prev, { id: nextId(), ...newUser, joined: today, lastLogin: "Never" }]);
-      toast.success("User added (offline mode)");
-    }
-    setNewUser({ name: "", email: "", password: "", role: "admin", roleId: 1, dept: "Management", status: "active" });
-    setShowAdd(false);
+    toast.error("User creation is not supported by the current backend.");
   };
 
   const handleEdit = async () => {
     if (!editUser) return;
-    try {
-      if (editUser._apiId) {
-        const roleObj = roles.find(r => r.name.toLowerCase() === editUser.role);
-        if (roleObj) await updateUserRole(editUser._apiId, roleObj.id);
-        if (editUser.status === "inactive") await toggleUserActive(editUser._apiId);
-      }
-    } catch { /* update locally */ }
-    setUsers(prev => prev.map(u => u.id === editUser.id ? editUser : u));
-    setEditUser(null);
-    toast.success("User updated successfully");
+    toast.error("User updates are not supported by the current backend.");
   };
 
   const handleDelete = async () => {
     if (!deleteUser) return;
-    try {
-      if (deleteUser._apiId) await toggleUserActive(deleteUser._apiId); // deactivate instead of hard delete
-    } catch { /* remove locally */ }
-    setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
-    setDeleteUser(null);
-    toast.success("User removed successfully");
+    toast.error("User deactivation is not supported by the current frontend API.");
   };
 
   const filtered = users.filter(
@@ -158,10 +103,7 @@ export function UserManagementPage() {
             <div>
               <label style={labelStyle}>Role</label>
               <select style={fieldStyle} value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                {roles.length > 0
-                  ? roles.map(r => <option key={r.id} value={r.name.toLowerCase()}>{r.name}</option>)
-                  : ["admin","supplier","client"].map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)
-                }
+                {roles.map(r => <option key={r.id} value={r.name.toLowerCase()}>{r.name}</option>)}
               </select>
             </div>
             <div>
@@ -241,8 +183,10 @@ export function UserManagementPage() {
       <PageHeader
         title="User Management"
         subtitle="Manage admin, supplier, and client accounts with role-based access control"
-        actions={<Btn size="sm" onClick={() => setShowAdd(true)}><Plus size={14} /> Add User</Btn>}
+        actions={<Btn size="sm" disabled title="Unavailable: current backend does not expose user listing or creation"><Plus size={14} /> Unavailable</Btn>}
       />
+
+      {dataError && <p className="mb-4" style={{ color: "#C0392B", fontSize: "0.8125rem" }}>{dataError}</p>}
 
       <div className="flex gap-0 mb-5" style={{ borderBottom: "2px solid #E8E2E0" }}>
         {[["users", "All Users"], ["permissions", "Permissions"], ["logs", "Audit Logs"]].map(([id, label]) => (
@@ -292,6 +236,9 @@ export function UserManagementPage() {
           </div>
 
           <Card>
+            <div className="p-5" style={{ color: "#7A6C6A", fontSize: "0.8375rem" }}>
+              User listing and account management are not supported by the current backend. Add, edit, role, and deactivation actions are unavailable.
+            </div>
             <DataTable
               searchable
               paginate={10}
@@ -364,14 +311,7 @@ export function UserManagementPage() {
         <Card>
           <CardHeader title="Audit Logs" subtitle="Recent system activity" />
           <div>
-            {(auditLogs.length > 0 ? auditLogs : [
-              { time: "09:22", user: "Vikram Sharma", action: "Generated Production Report", type: "info" },
-              { time: "09:14", user: "Security System", action: "Alert INC-2841 created — PPE Violation Zone B", type: "warn" },
-              { time: "08:47", user: "Security System", action: "Alert INC-2840 created — Unauthorized Entry Gate 3", type: "critical" },
-              { time: "08:30", user: "Vikram Sharma", action: "Approved PO-2847 — SteelCorp Ltd.", type: "info" },
-              { time: "07:55", user: "Priya Kapoor", action: "Added worker EMP-047 — Ravi Nair, Welding dept", type: "info" },
-              { time: "07:30", user: "System", action: "Inventory alert — Steel Tube 4mm out of stock", type: "warn" },
-            ]).map((log, i) => (
+            {(auditLogs.length > 0 ? auditLogs : []).map((log, i) => (
               <div key={i} className="flex items-start gap-4 px-5 py-3.5" style={{ borderBottom: "1px solid #F7F3F2" }}>
                 <span style={{ fontSize: "0.72rem", fontFamily: "JetBrains Mono, monospace", color: "#9A8A88", minWidth: "40px" }}>{log.time}</span>
                 <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: log.type === "critical" ? "#C0392B" : log.type === "warn" ? "#E65100" : "#2E7D32" }} />
@@ -381,6 +321,7 @@ export function UserManagementPage() {
                 </div>
               </div>
             ))}
+            {auditLogs.length === 0 && <p className="p-5" style={{ color: "#7A6C6A", fontSize: "0.8125rem" }}>No audit logs available.</p>}
           </div>
         </Card>
       )}

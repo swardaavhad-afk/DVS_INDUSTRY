@@ -9,6 +9,8 @@ export interface SupplierDto {
   contactName:  string | null;
   email:        string | null;
   phone:        string | null;
+  address:      string | null;
+  state:        string | null;
   city:         string | null;
   country:      string;
   gstin:        string | null;
@@ -48,7 +50,9 @@ export interface ClientDto {
   contactName: string | null;
   email:       string | null;
   phone:       string | null;
+  address:     string | null;
   city:        string | null;
+  state:       string | null;
   country:     string;
   gstin:       string | null;
   isActive:    boolean;
@@ -77,7 +81,8 @@ export type ClientOrderStatus = 'PENDING'|'APPROVED'|'IN_PRODUCTION'|'DISPATCHED
 export interface ClientOrderDto {
   id:           number;
   orderNumber:  string;
-  client:       { id: number; name: string; code: string };
+  clientId:     number;
+  clientName:   string;
   product:      string;
   quantity:     number;
   unit:         string;
@@ -89,7 +94,11 @@ export interface ClientOrderDto {
   deliveryDate: string | null;
   status:       ClientOrderStatus;
   notes:        string | null;
+  dispatchNote: string | null;
+  challanNumber: string | null;
+  invoiceNumber: string | null;
   createdAt:    string;
+  updatedAt:    string;
 }
 
 export interface ClientOrderQuery {
@@ -142,7 +151,8 @@ export type PurchaseOrderStatus = 'PENDING'|'CONFIRMED'|'IN_TRANSIT'|'DELIVERED'
 export interface PurchaseOrderDto {
   id:               number;
   poNumber:         string;
-  supplier:         { id: number; name: string; code: string };
+  supplierId:       number;
+  supplierName:     string;
   material:         string;
   quantity:         string;
   unit:             string | null;
@@ -192,17 +202,28 @@ export async function cancelPurchaseOrder(id: number): Promise<PurchaseOrderDto>
 // ── Statistics ────────────────────────────────────────────────────────────────
 
 export interface OrderStatistics {
-  totalClientOrders:     number;
-  pendingOrders:         number;
-  inProductionOrders:    number;
-  dispatchedOrders:      number;
-  deliveredOrders:       number;
-  cancelledOrders:       number;
-  totalPurchaseOrders:   number;
-  pendingPOs:            number;
-  totalRevenue:          string;
-  totalProcurement:      string;
-  fulfillmentRate:       string;
+  clientOrders: {
+    total: number;
+    pending: number;
+    approved: number;
+    inProduction: number;
+    dispatched: number;
+    delivered: number;
+    cancelled: number;
+    totalValue: string;
+  };
+  purchaseOrders: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    inTransit: number;
+    delivered: number;
+    cancelled: number;
+    totalCost: string;
+  };
+  fulfillmentRate: string;
+  activeSuppliers: number;
+  activeClients: number;
 }
 
 export async function getOrderStats(): Promise<OrderStatistics> {

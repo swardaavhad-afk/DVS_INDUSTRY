@@ -7,7 +7,7 @@ import {
   Building2, Car, Wind, Settings,
 } from "lucide-react";
 
-type Role = "admin" | "supplier" | "client" | "production" | "quality" | "store";
+type Role = "admin" | "supplier" | "client" | "production" | "store";
 interface HomePageProps { onNavigateToLogin: (role?: Role) => void; }
 
 /* ── Growth Journey data ── */
@@ -37,7 +37,6 @@ const capabilities = [
 ];
 
 const aiFeatures = [
-  { icon: Activity, title: "AI Machine Monitoring", desc: "Real-time OEE tracking, cycle time analytics, and predictive failure alerts for every machine on the floor." },
   { icon: Package, title: "Real-time Inventory Intelligence", desc: "Automated stock tracking, smart reorder suggestions, and scrap analytics across all material categories." },
   { icon: Settings, title: "Predictive Maintenance", desc: "Machine health scoring, wear pattern detection, and maintenance scheduling before breakdowns occur." },
   { icon: Shield, title: "AI Security Surveillance", desc: "YOLO-based PPE compliance detection, restricted zone alerts, and crowd formation monitoring." },

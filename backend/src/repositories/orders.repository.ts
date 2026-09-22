@@ -356,6 +356,14 @@ export class OrdersRepository {
     return raw ? toClientDto(raw) : null;
   }
 
+  async findClientByEmail(email: string): Promise<ClientDto | null> {
+    const raw = await prisma.client.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: clientSelect,
+    });
+    return raw ? toClientDto(raw) : null;
+  }
+
   async findClientByName(name: string): Promise<ClientDto | null> {
     const raw = await prisma.client.findFirst({
       where: { name: { equals: name, mode: 'insensitive' } },

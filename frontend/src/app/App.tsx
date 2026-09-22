@@ -9,7 +9,7 @@ import { logout as apiLogout } from "../lib/auth";
 import type { FrontendRole } from "../lib/auth";
 
 type Page = "home" | "login" | FrontendRole;
-type Role = "admin" | "supplier" | "client" | "production" | "quality" | "store";
+type Role = "admin" | "supplier" | "client" | "production" | "store" | "unauthorized";
 
 export default function App() {
   const [page, setPage]           = useState<Page>("home");
@@ -42,8 +42,8 @@ export default function App() {
       )}
       {page === "admin"      && <AdminApp onLogout={handleLogout} userRole="admin" />}
       {page === "production" && <AdminApp onLogout={handleLogout} userRole="production" />}
-      {page === "quality"    && <AdminApp onLogout={handleLogout} userRole="quality" />}
       {page === "store"      && <AdminApp onLogout={handleLogout} userRole="store" />}
+      {page === "unauthorized" && <div style={{ padding: "2rem" }}>Unauthorized role. Contact an administrator.</div>}
       {page === "supplier"   && <SupplierApp onLogout={handleLogout} />}
       {page === "client"     && <ClientApp  onLogout={handleLogout} />}
     </>

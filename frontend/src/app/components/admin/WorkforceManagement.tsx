@@ -1,31 +1,40 @@
-import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Search, Filter } from "lucide-react";
-import { Card, DataTable, StatusBadge, Btn } from "../shared/UI";
+import { useEffect, useMemo, useState } from "react";
+import { Edit2, Filter, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { Card, DataTable, StatusBadge, Btn } from "../shared/UI";
 import {
-  getEmployees, createEmployee, updateEmployee, deleteEmployee,
+  assignDepartment,
+  assignShift,
+  createEmployee,
+  deleteEmployee,
+  getEmployees,
+  updateEmployee,
   type EmployeeDto,
 } from "../../../lib/services/employees.service";
-import { getDepartments } from "../../../lib/services/departments.service";
+import { getDepartments, type DepartmentDto } from "../../../lib/services/departments.service";
+import { getShifts, type ShiftDto } from "../../../lib/services/workforce.service";
 
-// ── helper: map backend EmployeeDto → legacy UI Employee shape ────────────────
+const unavailable = "Unavailable";
 
 export interface Employee {
   id: string;
   _backendId?: number;
   name: string;
   dept: string;
+  departmentId: number | null;
   designation: string;
   shift: string;
+  shiftId: number | null;
   joining: string;
-  dailyWorkingHours: number;
-  expectedParts: number;
-  producedParts: number;
-  operationsPerformed: number;
-  quantityProduced: number;
-  attendanceStatus: "present" | "absent" | "late" | "on-leave";
-  dailyWageRate: number;
-  efficiency: number;
+  joiningDateIso: string;
+  dailyWorkingHours: number | null;
+  expectedParts: number | null;
+  producedParts: number | null;
+  operationsPerformed: number | null;
+  quantityProduced: number | null;
+  attendanceStatus: "present" | "absent" | "late" | "on-leave" | "unavailable";
+  dailyWageRate: number | null;
+  efficiency: number | null;
   status: "active" | "inactive" | "on-leave";
 }
 
@@ -33,82 +42,69 @@ function fromDto(e: EmployeeDto): Employee {
   return {
     id: e.employeeCode,
     _backendId: e.id,
-    name: `${e.firstName} ${e.lastName}`,
-    dept: e.department?.name ?? "—",
+    name: `${e.firstName} ${e.lastName}`.trim(),
+    dept: e.department?.name ?? unavailable,
+    departmentId: e.departmentId,
     designation: e.designation,
-    shift: e.shift?.name ?? "—",
+    shift: e.shift?.name ?? unavailable,
+    shiftId: e.shiftId,
     joining: new Date(e.joiningDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-    dailyWorkingHours: 8,
-    expectedParts: 100,
-    producedParts: 0,
-    operationsPerformed: 0,
-    quantityProduced: 0,
-    attendanceStatus: "present",
-    dailyWageRate: e.salary ? parseFloat(e.salary) / 26 : 0,
-    efficiency: 0,
+    joiningDateIso: e.joiningDate.slice(0, 10),
+    dailyWorkingHours: null,
+    expectedParts: null,
+    producedParts: null,
+    operationsPerformed: null,
+    quantityProduced: null,
+    attendanceStatus: "unavailable",
+    dailyWageRate: e.salary ? parseFloat(e.salary) / 26 : null,
+    efficiency: null,
     status: e.status === "ACTIVE" ? "active" : e.status === "ON_LEAVE" ? "on-leave" : "inactive",
   };
 }
 
-const FALLBACK_EMPLOYEES: Employee[] = [
-  { id: "EMP-001", name: "Arjun Mehta",   dept: "Cutting",  designation: "Sr. Operator",   shift: "Morning", joining: "14 Mar 2021", dailyWorkingHours: 8, expectedParts: 120, producedParts: 112, operationsPerformed: 42, quantityProduced: 112, attendanceStatus: "present", dailyWageRate: 3562.50, efficiency: 93.3, status: "active" },
-  { id: "EMP-002", name: "Priya Sharma",  dept: "Welding",  designation: "Welder",         shift: "Morning", joining: "02 Jan 2022", dailyWorkingHours: 8, expectedParts: 100, producedParts: 98,  operationsPerformed: 35, quantityProduced: 98,  attendanceStatus: "present", dailyWageRate: 3000,   efficiency: 98.0, status: "active" },
-  { id: "EMP-003", name: "Suresh Kumar",  dept: "Pressing", designation: "Press Operator", shift: "Evening", joining: "15 Aug 2020", dailyWorkingHours: 8, expectedParts: 95,  producedParts: 84,  operationsPerformed: 28, quantityProduced: 84,  attendanceStatus: "present", dailyWageRate: 2750,   efficiency: 88.4, status: "active" },
-  { id: "EMP-004", name: "Kavitha Nair",  dept: "Assembly", designation: "Sr. Assembler",  shift: "Morning", joining: "10 Jun 2019", dailyWorkingHours: 8, expectedParts: 146, producedParts: 145, operationsPerformed: 52, quantityProduced: 145, attendanceStatus: "present", dailyWageRate: 3875,   efficiency: 99.3, status: "active" },
-  { id: "EMP-005", name: "Ravi Patel",    dept: "Finishing",designation: "QC Inspector",   shift: "Morning", joining: "25 Nov 2021", dailyWorkingHours: 8, expectedParts: 136, producedParts: 128, operationsPerformed: 45, quantityProduced: 128, attendanceStatus: "present", dailyWageRate: 3375,   efficiency: 94.1, status: "active" },
-  { id: "EMP-006", name: "Deepak Singh",  dept: "Cutting",  designation: "Operator",       shift: "Night",   joining: "08 Sep 2023", dailyWorkingHours: 8, expectedParts: 95,  producedParts: 78,  operationsPerformed: 22, quantityProduced: 78,  attendanceStatus: "on-leave", dailyWageRate: 2437.50, efficiency: 82.1, status: "on-leave" },
-];
+function emptyEmployee(): Employee {
+  return {
+    id: "",
+    name: "",
+    dept: "",
+    departmentId: null,
+    designation: "",
+    shift: "",
+    shiftId: null,
+    joining: "",
+    joiningDateIso: new Date().toISOString().slice(0, 10),
+    dailyWorkingHours: null,
+    expectedParts: null,
+    producedParts: null,
+    operationsPerformed: null,
+    quantityProduced: null,
+    attendanceStatus: "unavailable",
+    dailyWageRate: null,
+    efficiency: null,
+    status: "active",
+  };
+}
 
 interface EmployeeDialogProps {
   employee: Employee | null;
+  departments: DepartmentDto[];
+  shifts: ShiftDto[];
   onClose: () => void;
   onSave: (employee: Employee) => void;
   mode: "add" | "edit";
 }
 
-function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps) {
-  const [formData, setFormData] = useState<Employee>(
-    employee || {
-      id: "",
-      name: "",
-      dept: "Cutting",
-      designation: "",
-      shift: "Morning",
-      joining: "",
-      dailyWorkingHours: 8,
-      expectedParts: 0,
-      producedParts: 0,
-      operationsPerformed: 0,
-      quantityProduced: 0,
-      attendanceStatus: "present",
-      dailyWageRate: 0,
-      efficiency: 0,
-      status: "active",
-    }
-  );
-
-  const calculateEfficiency = (produced: number, expected: number): number => {
-    if (expected === 0) return 0;
-    return parseFloat(((produced / expected) * 100).toFixed(1));
-  };
+function EmployeeDialog({ employee, departments, shifts, onClose, onSave, mode }: EmployeeDialogProps) {
+  const [formData, setFormData] = useState<Employee>(employee || emptyEmployee());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Generate ID if adding new employee
-    const employeeData = {
-      ...formData,
-      id: formData.id || `EMP-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`,
-      efficiency: calculateEfficiency(formData.producedParts, formData.expectedParts),
-      quantityProduced: formData.producedParts, // For now, same as produced parts
-    };
-    
-    onSave(employeeData);
+    onSave(formData);
     onClose();
   };
 
-  const handleChange = (field: keyof Employee, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof Employee, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const inputStyle: React.CSSProperties = {
@@ -130,15 +126,8 @@ function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
-      <div
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl"
-        style={{ background: "#fff" }}
-      >
-        {/* Header */}
-        <div
-          className="sticky top-0 flex items-center justify-between px-6 py-4"
-          style={{ background: "#fff", borderBottom: "1px solid #E8E2E0", zIndex: 10 }}
-        >
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl" style={{ background: "#fff" }}>
+        <div className="sticky top-0 flex items-center justify-between px-6 py-4" style={{ background: "#fff", borderBottom: "1px solid #E8E2E0", zIndex: 10 }}>
           <div>
             <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1C1C1C" }}>
               {mode === "add" ? "Add New Employee" : "Edit Employee"}
@@ -147,233 +136,100 @@ function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps
               {mode === "add" ? "Enter employee details below" : "Update employee information"}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-md"
-            style={{ color: "#7A6C6A" }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#F5F0EF"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-          >
+          <button onClick={onClose} className="p-2 rounded-md" style={{ color: "#7A6C6A" }}>
             <X size={18} />
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Employee Name */}
+            <div>
+              <label style={labelStyle}>Employee ID *</label>
+              <input type="text" value={formData.id} onChange={(e) => handleChange("id", e.target.value.toUpperCase())} style={inputStyle} placeholder="Enter employee code" required disabled={mode === "edit"} />
+            </div>
+
             <div>
               <label style={labelStyle}>Employee Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                style={inputStyle}
-                placeholder="Enter full name"
-                required
-              />
+              <input type="text" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} style={inputStyle} placeholder="Enter full name" required />
             </div>
 
-            {/* Department */}
             <div>
-              <label style={labelStyle}>Department *</label>
-              <select
-                value={formData.dept}
-                onChange={(e) => handleChange("dept", e.target.value)}
-                style={inputStyle}
-                required
-              >
-                <option value="Cutting">Cutting</option>
-                <option value="Welding">Welding</option>
-                <option value="Pressing">Pressing</option>
-                <option value="Assembly">Assembly</option>
-                <option value="Finishing">Finishing</option>
+              <label style={labelStyle}>Department</label>
+              <select value={formData.departmentId ?? ""} onChange={(e) => handleChange("departmentId", e.target.value ? Number(e.target.value) : null)} style={inputStyle}>
+                <option value="">Unavailable</option>
+                {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
               </select>
             </div>
 
-            {/* Designation */}
             <div>
               <label style={labelStyle}>Designation *</label>
-              <input
-                type="text"
-                value={formData.designation}
-                onChange={(e) => handleChange("designation", e.target.value)}
-                style={inputStyle}
-                placeholder="e.g., Sr. Operator"
-                required
-              />
+              <input type="text" value={formData.designation} onChange={(e) => handleChange("designation", e.target.value)} style={inputStyle} placeholder="e.g., Sr. Operator" required />
             </div>
 
-            {/* Shift */}
             <div>
-              <label style={labelStyle}>Shift *</label>
-              <select
-                value={formData.shift}
-                onChange={(e) => handleChange("shift", e.target.value)}
-                style={inputStyle}
-                required
-              >
-                <option value="Morning">Morning</option>
-                <option value="Evening">Evening</option>
-                <option value="Night">Night</option>
+              <label style={labelStyle}>Shift</label>
+              <select value={formData.shiftId ?? ""} onChange={(e) => handleChange("shiftId", e.target.value ? Number(e.target.value) : null)} style={inputStyle}>
+                <option value="">Unavailable</option>
+                {shifts.map((shift) => <option key={shift.id} value={shift.id}>{shift.name}</option>)}
               </select>
             </div>
 
-            {/* Joining Date */}
             <div>
               <label style={labelStyle}>Joining Date *</label>
-              <input
-                type="text"
-                value={formData.joining}
-                onChange={(e) => handleChange("joining", e.target.value)}
-                style={inputStyle}
-                placeholder="e.g., 14 Mar 2021"
-                required
-              />
+              <input type="date" value={formData.joiningDateIso} onChange={(e) => handleChange("joiningDateIso", e.target.value)} style={inputStyle} required />
             </div>
 
-            {/* Daily Working Hours */}
             <div>
-              <label style={labelStyle}>Daily Working Hours *</label>
-              <input
-                type="number"
-                value={formData.dailyWorkingHours}
-                onChange={(e) => handleChange("dailyWorkingHours", parseFloat(e.target.value))}
-                style={inputStyle}
-                step="0.5"
-                min="0"
-                max="24"
-                required
-              />
+              <label style={labelStyle}>Daily Working Hours</label>
+              <input value={unavailable} style={inputStyle} disabled />
             </div>
 
-            {/* Expected Parts */}
             <div>
-              <label style={labelStyle}>Expected Parts (Daily) *</label>
-              <input
-                type="number"
-                value={formData.expectedParts}
-                onChange={(e) => handleChange("expectedParts", parseInt(e.target.value))}
-                style={inputStyle}
-                min="0"
-                required
-              />
+              <label style={labelStyle}>Expected Parts (Daily)</label>
+              <input value={unavailable} style={inputStyle} disabled />
             </div>
 
-            {/* Produced Parts */}
             <div>
-              <label style={labelStyle}>Produced Parts (Daily) *</label>
-              <input
-                type="number"
-                value={formData.producedParts}
-                onChange={(e) => handleChange("producedParts", parseInt(e.target.value))}
-                style={inputStyle}
-                min="0"
-                required
-              />
+              <label style={labelStyle}>Produced Parts (Daily)</label>
+              <input value={unavailable} style={inputStyle} disabled />
             </div>
 
-            {/* Operations Performed */}
             <div>
-              <label style={labelStyle}>Number of Operations *</label>
-              <input
-                type="number"
-                value={formData.operationsPerformed}
-                onChange={(e) => handleChange("operationsPerformed", parseInt(e.target.value))}
-                style={inputStyle}
-                min="0"
-                required
-              />
+              <label style={labelStyle}>Number of Operations</label>
+              <input value={unavailable} style={inputStyle} disabled />
             </div>
 
-            {/* Attendance Status */}
             <div>
-              <label style={labelStyle}>Attendance Status *</label>
-              <select
-                value={formData.attendanceStatus}
-                onChange={(e) => handleChange("attendanceStatus", e.target.value as any)}
-                style={inputStyle}
-                required
-              >
-                <option value="present">Present</option>
-                <option value="absent">Absent</option>
-                <option value="late">Late</option>
-                <option value="on-leave">On Leave</option>
-              </select>
+              <label style={labelStyle}>Attendance Status</label>
+              <input value={unavailable} style={inputStyle} disabled />
             </div>
 
-            {/* Daily Wage Rate */}
             <div>
-              <label style={labelStyle}>Daily Wage Rate (₹) *</label>
-              <input
-                type="number"
-                value={formData.dailyWageRate}
-                onChange={(e) => handleChange("dailyWageRate", parseFloat(e.target.value))}
-                style={inputStyle}
-                step="0.01"
-                min="0"
-                required
-              />
+              <label style={labelStyle}>Daily Wage Rate</label>
+              <input value={formData.dailyWageRate === null ? unavailable : formData.dailyWageRate.toFixed(2)} style={inputStyle} disabled />
             </div>
 
-            {/* Status */}
             <div>
-              <label style={labelStyle}>Status *</label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleChange("status", e.target.value as any)}
-                style={inputStyle}
-                required
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="on-leave">On Leave</option>
-              </select>
+              <label style={labelStyle}>Status</label>
+              <input value={formData.status === "active" ? "Active" : formData.status} style={inputStyle} disabled />
             </div>
           </div>
 
-          {/* Calculated Efficiency Preview */}
-          <div
-            className="p-3 rounded-md mb-4"
-            style={{ background: "#FDF5F5", border: "1px solid #FFCDD2" }}
-          >
+          <div className="p-3 rounded-md mb-4" style={{ background: "#F5F5F5", border: "1px solid #E8E2E0" }}>
             <p style={{ fontSize: "0.775rem", color: "#7A6C6A", marginBottom: "0.25rem" }}>
               <strong>Calculated Efficiency:</strong>
             </p>
-            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#A52A2A" }}>
-              {calculateEfficiency(formData.producedParts, formData.expectedParts).toFixed(1)}%
-            </p>
+            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#7A6C6A" }}>{unavailable}</p>
             <p style={{ fontSize: "0.7rem", color: "#9A8A88", marginTop: "0.25rem" }}>
-              Formula: (Produced Parts ÷ Expected Parts) × 100
+              No backend API currently exposes employee-level expected and produced parts.
             </p>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-md"
-              style={{
-                border: "1px solid #E8E2E0",
-                background: "#fff",
-                color: "#4A4A4A",
-                fontSize: "0.875rem",
-              }}
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md" style={{ border: "1px solid #E8E2E0", background: "#fff", color: "#4A4A4A", fontSize: "0.875rem" }}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-md"
-              style={{
-                background: "#A52A2A",
-                color: "#fff",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                border: "none",
-              }}
-            >
+            <button type="submit" className="px-4 py-2 rounded-md" style={{ background: "#A52A2A", color: "#fff", fontSize: "0.875rem", fontWeight: 600, border: "none" }}>
               {mode === "add" ? "Add Employee" : "Save Changes"}
             </button>
           </div>
@@ -384,98 +240,120 @@ function EmployeeDialog({ employee, onClose, onSave, mode }: EmployeeDialogProps
 }
 
 export function WorkforceManagement() {
-  const [employees, setEmployees] = useState<Employee[]>(FALLBACK_EMPLOYEES);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState("");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
-  const [departments, setDepartments]   = useState<string[]>(["Cutting", "Welding", "Pressing", "Assembly", "Finishing"]);
-  const [dialogMode, setDialogMode]     = useState<"add" | "edit" | null>(null);
+  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+  const [shifts, setShifts] = useState<ShiftDto[]>([]);
+  const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
-  // ── Load employees from API ──────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      getEmployees({ pageSize: 100 }).catch(() => null),
-      getDepartments().catch(() => null),
-    ]).then(([empRes, deptRes]) => {
+      getEmployees({ pageSize: 100, status: "all" }),
+      getDepartments(),
+      getShifts({ pageSize: 100 }).catch(() => ({ data: [] as ShiftDto[] })),
+    ]).then(([empRes, deptRes, shiftRes]) => {
       if (cancelled) return;
-      if (empRes && empRes.data.length > 0) {
-        setEmployees(empRes.data.map(fromDto));
-      }
-      if (deptRes && deptRes.length > 0) {
-        setDepartments(deptRes.map((d: { name: string }) => d.name));
-      }
+      setEmployees(empRes.data.map(fromDto));
+      setDepartments(deptRes);
+      setShifts(shiftRes.data);
       setLoading(false);
+    }).catch(() => {
+      if (!cancelled) {
+        setLoadError("Employee or department data is unavailable.");
+        setLoading(false);
+      }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filteredEmployees = employees.filter((e) =>
-    (selectedDept === "all" || e.dept === selectedDept) &&
-    (e.name.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search))
+  const filteredEmployees = useMemo(
+    () =>
+      employees.filter((e) =>
+        (selectedDept === "all" || String(e.departmentId) === selectedDept) &&
+        (e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase())),
+      ),
+    [employees, search, selectedDept],
   );
 
-  const handleAdd = () => { setDialogMode("add"); setSelectedEmployee(null); };
-  const handleEdit = (emp: Employee) => { setDialogMode("edit"); setSelectedEmployee(emp); };
+  const handleAdd = () => {
+    setDialogMode("add");
+    setSelectedEmployee(null);
+  };
+
+  const handleEdit = (emp: Employee) => {
+    setDialogMode("edit");
+    setSelectedEmployee(emp);
+  };
 
   const handleDelete = async (empId: string) => {
-    const emp = employees.find(e => e.id === empId);
+    const emp = employees.find((e) => e.id === empId);
     if (!emp) return;
     if (!confirm("Are you sure you want to delete this employee?")) return;
     try {
       if (emp._backendId) await deleteEmployee(emp._backendId);
-      setEmployees(prev => prev.filter(e => e.id !== empId));
+      setEmployees((prev) => prev.filter((e) => e.id !== empId));
       toast.success("Employee deleted successfully");
     } catch {
-      // If backend fails (e.g. not running), still remove from local state for demo
-      setEmployees(prev => prev.filter(e => e.id !== empId));
-      toast.success("Employee removed");
+      toast.error("Employee could not be deleted.");
     }
   };
 
   const handleSave = async (employee: Employee) => {
+    const [firstName, ...rest] = employee.name.trim().split(/\s+/);
     try {
       if (dialogMode === "add") {
-        // Try real API; fall back to local-only
-        const payload = {
-          employeeCode: employee.id || `EMP-${Date.now()}`,
-          firstName: employee.name.split(" ")[0] ?? employee.name,
-          lastName:  employee.name.split(" ").slice(1).join(" ") || "—",
+        const created = await createEmployee({
+          employeeCode: employee.id,
+          firstName,
+          lastName: rest.join(" ") || "-",
           designation: employee.designation,
-          joiningDate: new Date().toISOString(),
+          joiningDate: employee.joiningDateIso,
           employmentType: "FULL_TIME",
-        };
-        try {
-          const created = await createEmployee(payload);
-          setEmployees(prev => [...prev, fromDto(created)]);
-        } catch {
-          setEmployees(prev => [...prev, { ...employee, id: employee.id || `EMP-${Date.now()}` }]);
-        }
+          departmentId: employee.departmentId,
+          shiftId: employee.shiftId,
+        });
+        setEmployees((prev) => [...prev, fromDto(created)]);
         toast.success("Employee added successfully");
       } else {
-        try {
-          if (employee._backendId) {
-            const updated = await updateEmployee(employee._backendId, { designation: employee.designation });
-            setEmployees(prev => prev.map(e => e.id === employee.id ? fromDto(updated) : e));
-          } else {
-            setEmployees(prev => prev.map(e => e.id === employee.id ? employee : e));
-          }
-        } catch {
-          setEmployees(prev => prev.map(e => e.id === employee.id ? employee : e));
-        }
+        if (!employee._backendId) throw new Error("Employee is not linked to the database.");
+        const updated = await updateEmployee(employee._backendId, {
+          firstName,
+          lastName: rest.join(" ") || "-",
+          designation: employee.designation,
+          joiningDate: employee.joiningDateIso,
+        });
+        const withDepartment = employee.departmentId !== updated.departmentId
+          ? await assignDepartment(updated.id, employee.departmentId)
+          : updated;
+        const withShift = employee.shiftId !== withDepartment.shiftId
+          ? await assignShift(withDepartment.id, employee.shiftId)
+          : withDepartment;
+        setEmployees((prev) => prev.map((e) => e.id === employee.id ? fromDto(withShift) : e));
         toast.success("Employee updated successfully");
       }
+    } catch {
+      toast.error("Employee could not be saved.");
     } finally {
       setDialogMode(null);
       setSelectedEmployee(null);
     }
   };
 
-  const handleCloseDialog = () => { setDialogMode(null); setSelectedEmployee(null); };
+  const handleCloseDialog = () => {
+    setDialogMode(null);
+    setSelectedEmployee(null);
+  };
 
   return (
     <div>
+      {loadError && <p className="mb-4" style={{ color: "#C0392B", fontSize: "0.8375rem" }}>{loadError}</p>}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="flex items-center gap-2 flex-1 min-w-48 px-3 py-2 rounded-md" style={{ background: "#fff", border: "1px solid #E8E2E0" }}>
           <Search size={14} color="#9A8A88" />
@@ -492,7 +370,7 @@ export function WorkforceManagement() {
           style={{ padding: "0.5rem 0.75rem", border: "1px solid #E8E2E0", borderRadius: "0.375rem", fontSize: "0.8375rem", background: "#fff", cursor: "pointer" }}
         >
           <option value="all">All Departments</option>
-          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <Btn size="sm" variant="secondary"><Filter size={14} /> Filters</Btn>
         <Btn size="sm" onClick={handleAdd}><Plus size={14} /> Add Employee</Btn>
@@ -503,6 +381,7 @@ export function WorkforceManagement() {
           searchable
           paginate={10}
           exportFilename="DVS_Employees.csv"
+          emptyMsg={loading ? "Loading employee data..." : loadError ? "Employee data unavailable." : "No employee data available."}
           columns={[
             { key: "id", label: "ID" },
             { key: "name", label: "Name" },
@@ -527,37 +406,21 @@ export function WorkforceManagement() {
             dept: e.dept,
             designation: e.designation,
             shift: <span style={{ fontSize: "0.775rem" }}>{e.shift}</span>,
-            workingHours: `${e.dailyWorkingHours}h`,
+            workingHours: e.dailyWorkingHours === null ? unavailable : `${e.dailyWorkingHours}h`,
             attendance: (
-              <span className="px-2 py-0.5 rounded-full" style={{
-                fontSize: "0.7rem", fontWeight: 600,
-                background: e.attendanceStatus === "present" ? "#E8F5E9" : e.attendanceStatus === "late" ? "#FFF8E1" : "#FFEBEE",
-                color: e.attendanceStatus === "present" ? "#2E7D32" : e.attendanceStatus === "late" ? "#F57F17" : "#C0392B",
-              }}>
-                {e.attendanceStatus.charAt(0).toUpperCase() + e.attendanceStatus.slice(1)}
+              <span className="px-2 py-0.5 rounded-full" style={{ fontSize: "0.7rem", fontWeight: 600, background: "#F5F5F5", color: "#7A6C6A" }}>
+                {unavailable}
               </span>
             ),
-            efficiency: (
-              <span style={{ color: e.efficiency >= 95 ? "#2E7D32" : e.efficiency >= 88 ? "#E65100" : "#C0392B", fontWeight: 600 }}>
-                {e.efficiency.toFixed(1)}%
-              </span>
-            ),
-            parts: `${e.producedParts}/${e.expectedParts}`,
+            efficiency: <span style={{ color: "#7A6C6A", fontWeight: 600 }}>{unavailable}</span>,
+            parts: e.producedParts === null || e.expectedParts === null ? unavailable : `${e.producedParts}/${e.expectedParts}`,
             status: <StatusBadge status={e.status === "active" ? "active" : "neutral"} label={e.status === "active" ? "Active" : e.status} />,
             actions: (
               <div className="flex gap-1.5">
-                <button
-                  onClick={() => handleEdit(e)}
-                  className="p-1.5 rounded"
-                  style={{ background: "#F5F0EF", color: "#4E342E" }}
-                >
+                <button onClick={() => handleEdit(e)} className="p-1.5 rounded" style={{ background: "#F5F0EF", color: "#4E342E" }}>
                   <Edit2 size={12} />
                 </button>
-                <button
-                  onClick={() => handleDelete(e.id)}
-                  className="p-1.5 rounded"
-                  style={{ background: "#FFEBEE", color: "#C0392B" }}
-                >
+                <button onClick={() => handleDelete(e.id)} className="p-1.5 rounded" style={{ background: "#FFEBEE", color: "#C0392B" }}>
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -566,10 +429,11 @@ export function WorkforceManagement() {
         />
       </Card>
 
-      {/* Dialog */}
       {dialogMode && (
         <EmployeeDialog
           employee={selectedEmployee}
+          departments={departments}
+          shifts={shifts}
           mode={dialogMode}
           onClose={handleCloseDialog}
           onSave={handleSave}

@@ -148,7 +148,8 @@ model Employee {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  attendances Attendance[]
+  attendances       Attendance[]
+  attendancePunches AttendancePunch[]
 
   @@index([employeeCode])
   @@index([email])
@@ -182,21 +183,51 @@ model Attendance {
   @@index([employeeId])
 }
 
+model AttendancePunch {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  sourceSystem       String @default("ESSL")
+  deviceId           String
+  externalEmployeeId String
+  externalEventId    String
+
+  occurredAt DateTime                 @db.Timestamptz(3)
+  direction  AttendancePunchDirection
+
+  processingStatus AttendancePunchStatus @default(RECEIVED)
+  processedAt      DateTime?             @db.Timestamptz(3)
+  processingError  String?
+
+  rawPayload Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceSystem, deviceId, externalEventId])
+  @@index([employeeId])
+  @@index([occurredAt])
+  @@index([employeeId, occurredAt])
+  @@index([externalEventId])
+}
+
 // ───────────────────────────────────────────────────────────────
 // Inventory
 // ───────────────────────────────────────────────────────────────
 
 model Material {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  code        String   @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  code        String  @unique
   description String?
   unit        String
   category    String?
   location    String?
 
-  currentStock  Decimal @default(0) @db.Decimal(12, 3)
-  minStockLevel Decimal @default(0) @db.Decimal(12, 3)
+  currentStock  Decimal  @default(0) @db.Decimal(12, 3)
+  minStockLevel Decimal  @default(0) @db.Decimal(12, 3)
   maxStockLevel Decimal? @db.Decimal(12, 3)
 
   costPerUnit Decimal? @db.Decimal(12, 2)
@@ -217,9 +248,9 @@ model Material {
 }
 
 model StockTransaction {
-  id           Int                  @id @default(autoincrement())
-  materialId   Int
-  material     Material             @relation(fields: [materialId], references: [id])
+  id         Int      @id @default(autoincrement())
+  materialId Int
+  material   Material @relation(fields: [materialId], references: [id])
 
   type         StockTransactionType
   quantity     Decimal              @db.Decimal(12, 3)
@@ -246,14 +277,14 @@ model ScrapRecord {
   materialId Int
   material   Material @relation(fields: [materialId], references: [id])
 
-  quantity      Decimal @db.Decimal(12, 3)
-  unit          String
-  departmentId  Int?
+  quantity       Decimal  @db.Decimal(12, 3)
+  unit           String
+  departmentId   Int?
   departmentName String?
-  employeeId    Int?
-  employeeName  String?
-  reason        String?
-  recoveryValue Decimal? @db.Decimal(12, 2)
+  employeeId     Int?
+  employeeName   String?
+  reason         String?
+  recoveryValue  Decimal? @db.Decimal(12, 2)
 
   recordedAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -269,25 +300,25 @@ model ScrapRecord {
 // ───────────────────────────────────────────────────────────────
 
 model Supplier {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  code        String   @unique
-  contactName String?
-  email       String?
-  phone       String?
-  address     String?
-  city        String?
-  state       String?
-  country     String  @default("India")
-  gstin       String?
-  rating      Decimal? @db.Decimal(3, 1)   // 0.0 – 5.0
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
+  code         String    @unique
+  contactName  String?
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  state        String?
+  country      String    @default("India")
+  gstin        String?
+  rating       Decimal?  @db.Decimal(3, 1) // 0.0 – 5.0
   leadTimeDays Int?
-  reliability  String?                      // "98%", "99%" etc.
-  materials   String?                       // comma-separated material names
-  isActive    Boolean  @default(true)
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  reliability  String? // "98%", "99%" etc.
+  materials    String? // comma-separated material names
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   purchaseOrders PurchaseOrder[]
 
@@ -296,21 +327,21 @@ model Supplier {
 }
 
 model Client {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  code        String   @unique
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  code        String    @unique
   contactName String?
   email       String?
   phone       String?
   address     String?
   city        String?
   state       String?
-  country     String  @default("India")
+  country     String    @default("India")
   gstin       String?
-  isActive    Boolean  @default(true)
+  isActive    Boolean   @default(true)
   deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   clientOrders ClientOrder[]
 
@@ -319,32 +350,32 @@ model Client {
 }
 
 model ClientOrder {
-  id           Int               @id @default(autoincrement())
-  orderNumber  String            @unique            // e.g. ORD-2841
-  clientId     Int
-  client       Client            @relation(fields: [clientId], references: [id])
+  id          Int    @id @default(autoincrement())
+  orderNumber String @unique // e.g. ORD-2841
+  clientId    Int
+  client      Client @relation(fields: [clientId], references: [id])
 
-  product       String
-  quantity      Int
-  unit          String           @default("pcs")
-  value         Decimal?         @db.Decimal(14, 2)
-  currency      String           @default("INR")
+  product  String
+  quantity Int
+  unit     String   @default("pcs")
+  value    Decimal? @db.Decimal(14, 2)
+  currency String   @default("INR")
 
-  orderDate     DateTime         @default(now())
-  requiredDate  DateTime?
-  dispatchDate  DateTime?
-  deliveryDate  DateTime?
+  orderDate    DateTime  @default(now())
+  requiredDate DateTime?
+  dispatchDate DateTime?
+  deliveryDate DateTime?
 
-  status        ClientOrderStatus @default(PENDING)
+  status ClientOrderStatus @default(PENDING)
 
   notes         String?
   dispatchNote  String?
   challanNumber String?
   invoiceNumber String?
 
-  createdById   Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([clientId])
   @@index([status])
@@ -353,27 +384,27 @@ model ClientOrder {
 }
 
 model PurchaseOrder {
-  id           Int                 @id @default(autoincrement())
-  poNumber     String              @unique            // e.g. PO-2847
-  supplierId   Int
-  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  id         Int      @id @default(autoincrement())
+  poNumber   String   @unique // e.g. PO-2847
+  supplierId Int
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
 
-  material     String
-  quantity     String                                 // e.g. "500 kg"
-  unit         String?
-  totalCost    Decimal?            @db.Decimal(14, 2)
-  currency     String              @default("INR")
+  material  String
+  quantity  String // e.g. "500 kg"
+  unit      String?
+  totalCost Decimal? @db.Decimal(14, 2)
+  currency  String   @default("INR")
 
-  orderDate     DateTime           @default(now())
+  orderDate        DateTime  @default(now())
   expectedDelivery DateTime?
   actualDelivery   DateTime?
 
-  status        PurchaseOrderStatus @default(PENDING)
+  status PurchaseOrderStatus @default(PENDING)
 
-  notes         String?
-  createdById   Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  notes       String?
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([supplierId])
   @@index([status])
@@ -386,39 +417,39 @@ model PurchaseOrder {
 // ───────────────────────────────────────────────────────────────
 
 model WorkOrder {
-  id              Int               @id @default(autoincrement())
-  workOrderNumber String            @unique            // e.g. WO-0042
+  id              Int    @id @default(autoincrement())
+  workOrderNumber String @unique // e.g. WO-0042
 
   // What to produce
-  product         String
-  targetQuantity  Decimal           @db.Decimal(12, 3)
-  unit            String            @default("pcs")
+  product        String
+  targetQuantity Decimal @db.Decimal(12, 3)
+  unit           String  @default("pcs")
 
   // Scheduling
-  scheduledStart  DateTime?
-  scheduledEnd    DateTime?
-  actualStart     DateTime?
-  actualEnd       DateTime?
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  actualStart    DateTime?
+  actualEnd      DateTime?
 
   // Tracking
-  status          WorkOrderStatus   @default(DRAFT)
-  priority        WorkOrderPriority @default(NORMAL)
+  status   WorkOrderStatus   @default(DRAFT)
+  priority WorkOrderPriority @default(NORMAL)
 
   // Links
-  departmentId    Int?
-  departmentName  String?
-  assignedToId    Int?              // Employee (supervisor)
-  assignedToName  String?
-  clientOrderId   Int?              // Optional link to a ClientOrder
+  departmentId   Int?
+  departmentName String?
+  assignedToId   Int? // Employee (supervisor)
+  assignedToName String?
+  clientOrderId  Int? // Optional link to a ClientOrder
 
-  notes           String?
+  notes String?
 
-  createdById     Int?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  deletedAt       DateTime?
+  createdById Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  outputs         WorkOrderOutput[]
+  outputs WorkOrderOutput[]
 
   @@index([workOrderNumber])
   @@index([status])
@@ -434,38 +465,39 @@ model WorkOrderOutput {
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
   // Quantities
-  goodQty     Decimal   @db.Decimal(12, 3)   // accepted output
-  rejectedQty Decimal   @default(0) @db.Decimal(12, 3)
-  scrapQty    Decimal   @default(0) @db.Decimal(12, 3)
+  goodQty     Decimal @db.Decimal(12, 3) // accepted output
+  rejectedQty Decimal @default(0) @db.Decimal(12, 3)
+  scrapQty    Decimal @default(0) @db.Decimal(12, 3)
 
-  recordedAt  DateTime  @default(now())
+  recordedAt DateTime @default(now())
 
   // Who recorded it
   recordedById   Int?
   recordedByName String?
 
-  remarks     String?
+  remarks String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workOrderId])
   @@index([recordedAt])
 }
+
 // ───────────────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────────────
 // Security
 // ───────────────────────────────────────────────────────────────
 
 model SecurityIncident {
-  id             Int                    @id @default(autoincrement())
-  incidentNumber String                 @unique            // e.g. INC-0001
+  id             Int    @id @default(autoincrement())
+  incidentNumber String @unique // e.g. INC-0001
 
-  title          String
-  description    String
-  type           IncidentType
-  severity       IncidentSeverity       @default(MEDIUM)
-  status         IncidentStatus         @default(OPEN)
+  title       String
+  description String
+  type        IncidentType
+  severity    IncidentSeverity @default(MEDIUM)
+  status      IncidentStatus   @default(OPEN)
 
   // Location / scope
   location       String?
@@ -479,20 +511,20 @@ model SecurityIncident {
   assignedToName String?
 
   // Timing
-  occurredAt     DateTime               @default(now())
-  resolvedAt     DateTime?
-  closedAt       DateTime?
+  occurredAt DateTime  @default(now())
+  resolvedAt DateTime?
+  closedAt   DateTime?
 
   // Investigation
-  rootCause      String?
+  rootCause        String?
   correctiveAction String?
 
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  updates        IncidentUpdate[]
-  alerts         SecurityAlert[]
+  updates IncidentUpdate[]
+  alerts  SecurityAlert[]
 
   @@index([incidentNumber])
   @@index([type])
@@ -507,37 +539,37 @@ model IncidentUpdate {
   incidentId Int
   incident   SecurityIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
-  comment    String
-  statusChange IncidentStatus?   // null means no status change, just a comment
+  comment      String
+  statusChange IncidentStatus? // null means no status change, just a comment
 
   updatedById   Int?
   updatedByName String?
 
-  createdAt  DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@index([incidentId])
   @@index([createdAt])
 }
 
 model SecurityAlert {
-  id             Int                @id @default(autoincrement())
-  alertNumber    String             @unique            // e.g. ALT-0001
+  id          Int    @id @default(autoincrement())
+  alertNumber String @unique // e.g. ALT-0001
 
-  title          String
-  message        String
-  type           AlertType
-  severity       IncidentSeverity   @default(MEDIUM)
-  status         AlertStatus        @default(ACTIVE)
+  title    String
+  message  String
+  type     AlertType
+  severity IncidentSeverity @default(MEDIUM)
+  status   AlertStatus      @default(ACTIVE)
 
   // Source
-  source         String?            // e.g. "CCTV", "Manual", "Sensor"
+  source         String? // e.g. "CCTV", "Manual", "Sensor"
   location       String?
   departmentId   Int?
   departmentName String?
 
   // Link to incident (optional)
-  incidentId     Int?
-  incident       SecurityIncident?  @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  incidentId Int?
+  incident   SecurityIncident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
 
   // Acknowledgement
   acknowledgedById   Int?
@@ -549,11 +581,11 @@ model SecurityAlert {
   resolvedByName String?
   resolvedAt     DateTime?
 
-  expiresAt      DateTime?          // auto-expire time for time-bound alerts
+  expiresAt DateTime? // auto-expire time for time-bound alerts
 
-  createdById    Int?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([alertNumber])
   @@index([type])
@@ -568,32 +600,32 @@ model SecurityAlert {
 // Audit Log
 // ───────────────────────────────────────────────────────────────
 model AuditLog {
-  id         Int            @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Who
-  userId     Int?
-  userEmail  String?
-  userRole   String?
+  userId    Int?
+  userEmail String?
+  userRole  String?
 
   // What
   action     AuditAction
-  entity     String                      // e.g. "Employee", "WorkOrder"
-  entityId   String?                     // string to handle any PK type
-  entityCode String?                     // human-readable ref (e.g. EMP-001)
+  entity     String // e.g. "Employee", "WorkOrder"
+  entityId   String? // string to handle any PK type
+  entityCode String? // human-readable ref (e.g. EMP-001)
 
   // Request metadata
-  method     String?                     // HTTP method
-  path       String?                     // URL path
+  method     String? // HTTP method
+  path       String? // URL path
   statusCode Int?
 
   // Diff snapshot (optional — only for write operations)
-  before     Json?
-  after      Json?
+  before Json?
+  after  Json?
 
-  ipAddress  String?
-  userAgent  String?
+  ipAddress String?
+  userAgent String?
 
-  createdAt  DateTime       @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([entity])
@@ -634,11 +666,11 @@ enum AttendanceStatus {
 }
 
 enum StockTransactionType {
-  IN          // Stock received / purchased
-  OUT         // Consumed in production
-  ADJUSTMENT  // Manual correction
-  SCRAP       // Scrap write-off
-  RETURN      // Returned to supplier / store
+  IN // Stock received / purchased
+  OUT // Consumed in production
+  ADJUSTMENT // Manual correction
+  SCRAP // Scrap write-off
+  RETURN // Returned to supplier / store
 }
 
 enum ClientOrderStatus {
@@ -670,11 +702,11 @@ enum AuditAction {
 }
 
 enum WorkOrderStatus {
-  DRAFT        // Created but not yet released
-  RELEASED     // Released to production floor
-  IN_PROGRESS  // Production has started
-  ON_HOLD      // Paused
-  COMPLETED    // Production finished
+  DRAFT // Created but not yet released
+  RELEASED // Released to production floor
+  IN_PROGRESS // Production has started
+  ON_HOLD // Paused
+  COMPLETED // Production finished
   CANCELLED
 }
 
@@ -726,4 +758,16 @@ enum AlertStatus {
   ACKNOWLEDGED
   RESOLVED
   EXPIRED
+}
+
+enum AttendancePunchDirection {
+  IN
+  OUT
+}
+
+enum AttendancePunchStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
 }
