@@ -49,6 +49,7 @@ export interface IUserRepository {
   findAll(filters?: { isActive?: boolean; roleId?: number }): Promise<UserDto[]>;
   create(data: CreateUserData): Promise<UserDto>;
   update(id: number, data: Partial<UpdateUserData>): Promise<UserDto>;
+  updateByAdmin(id: number, data: AdminUpdateUserData): Promise<UserDto>;
   updateLastLogin(id: number): Promise<void>;
   updatePassword(id: number, hashedPassword: string): Promise<void>;
   deactivate(id: number): Promise<UserDto>;
@@ -80,6 +81,12 @@ export interface CreateUserData {
 export interface UpdateUserData {
   fullName: string;
   phone: string | null;
+}
+
+export interface AdminUpdateUserData {
+  fullName?: string;
+  email?: string;
+  roleId?: number;
 }
 
 export interface ChangePasswordData {

@@ -26,9 +26,15 @@ export function validateRequest(schemas: {
         req.params = (await schemas.params.parseAsync(req.params)) as typeof req.params;
       }
       if (schemas.query !== undefined) {
-        const parsed = (await schemas.query.parseAsync(req.query)) as typeof req.query;
-        // Express 5 makes req.query a getter — use Object.assign to merge parsed values
-        Object.assign(req.query, parsed);
+        const parsed = await schemas.query.parseAsync(req.query);
+        // Express 5 exposes req.query through a getter, so replace it with the
+        // coerced result instead of mutating the original string-valued object.
+        Object.defineProperty(req, 'query', {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: parsed,
+        });
       }
       next();
     } catch (err) {

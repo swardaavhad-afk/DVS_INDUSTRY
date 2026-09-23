@@ -1,4 +1,10 @@
-import type { IUserRepository, UserDto, CreateUserData, UpdateUserData } from '../interfaces';
+import type {
+  IUserRepository,
+  UserDto,
+  CreateUserData,
+  UpdateUserData,
+  AdminUpdateUserData,
+} from '../interfaces';
 import { prisma } from '../lib/prismaClient';
 
 // Fields returned on every user query — excludes password by default
@@ -63,6 +69,10 @@ export class UserRepository implements IUserRepository {
       select: userSelect,
     });
     return user;
+  }
+
+  async updateByAdmin(id: number, data: AdminUpdateUserData): Promise<UserDto> {
+    return prisma.user.update({ where: { id }, data, select: userSelect });
   }
 
   async updateLastLogin(id: number): Promise<void> {

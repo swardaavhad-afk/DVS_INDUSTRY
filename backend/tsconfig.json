@@ -5,9 +5,9 @@
     "outDir": "./dist",
 
     // ── Module system ────────────────────────────────────────────
-    // package.json uses "type": "commonjs", so keep CommonJS here.
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // package.json uses "type": "commonjs", so Node16 preserves CommonJS output.
+    "module": "node16",
+    "moduleResolution": "node16",
     "target": "es2022",
     "lib": ["es2022"],
 

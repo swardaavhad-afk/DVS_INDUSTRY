@@ -137,7 +137,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
   };
 
   const handleSignup = async () => {
-    setError("Registration is managed by an administrator.");
+    setError("Accounts are created by an administrator. Please request access from your system administrator.");
   };
 
   const handleForgot = async () => {
@@ -341,7 +341,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                       {role.label} Portal
                     </p>
                     <h1 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#1C1C1C", lineHeight: 1.2 }}>
-                      {mode === "login" ? "Welcome Back" : mode === "signup" ? "Registration unavailable" : "Reset Password"}
+                      {mode === "login" ? "Welcome Back" : mode === "signup" ? "Request Account Access" : "Reset Password"}
                     </h1>
                   </div>
                 </div>
@@ -512,7 +512,7 @@ export function LoginPage({ initialRole, onNavigateHome, onLoginSuccess }: Login
                 ) : mode === "login" ? (
                   <> Sign In <ChevronRight size={17} /></>
                 ) : mode === "signup" ? (
-                  <> Registration unavailable <ChevronRight size={17} /></>
+                  <> Request administrator access <ChevronRight size={17} /></>
                 ) : (
                   <> Send Reset Link <ChevronRight size={17} /></>
                 )}

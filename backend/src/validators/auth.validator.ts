@@ -84,6 +84,12 @@ export const userIdParamSchema = z.object({
   id: z.coerce.number().int().positive('User id must be a positive integer'),
 });
 
+export const adminUpdateUserSchema = z.object({
+  fullName: z.string().min(2).max(100).trim().optional(),
+  email: emailField.optional(),
+  roleId: z.number().int().positive().optional(),
+});
+
 // ── Exported types inferred from schemas ──────────────────────────────────────
 
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -6,6 +6,7 @@ import type {
   TokenPair,
   CreateUserData,
   UpdateUserData,
+  AdminUpdateUserData,
   ChangePasswordData,
 } from '../interfaces';
 import {
@@ -61,6 +62,28 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(data.password, env.BCRYPT_SALT_ROUNDS);
 
     return this.userRepo.create({ ...data, password: hashedPassword });
+  }
+
+  async getUsers(): Promise<UserDto[]> {
+    return this.userRepo.findAll();
+  }
+
+  async updateUser(targetUserId: number, data: AdminUpdateUserData): Promise<UserDto> {
+    const existing = await this.userRepo.findById(targetUserId);
+    if (existing === null) throw new NotFoundError('User not found');
+
+    if (data.email !== undefined) {
+      const account = await this.userRepo.findByEmail(data.email);
+      if (account !== null && account.id !== targetUserId) {
+        throw new ConflictError('A user with this email already exists');
+      }
+    }
+
+    if (data.roleId !== undefined && (await this.roleRepo.findById(data.roleId)) === null) {
+      throw new BadRequestError(`Role with id ${data.roleId} does not exist`);
+    }
+
+    return this.userRepo.updateByAdmin(targetUserId, data);
   }
 
   // ── Login ─────────────────────────────────────────────────────────────────

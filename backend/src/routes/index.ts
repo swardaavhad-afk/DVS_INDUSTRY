@@ -15,6 +15,15 @@ import { env } from '../config/env';
 
 const router = Router();
 
+router.get('/', (_req, res) => {
+  res.status(200).json({
+    service: 'DVS Industries API',
+    status: 'ok',
+    health: `${API_PREFIX}/health`,
+    api: API_PREFIX,
+  });
+});
+
 // ── Feature routers ───────────────────────────────────────────────────────────
 router.use(`${API_PREFIX}/auth`, authRouter);
 router.use(`${API_PREFIX}/audit`, auditRouter);

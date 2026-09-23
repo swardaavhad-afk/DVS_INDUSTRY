@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../types';
+import type { AdminUpdateUserData } from '../interfaces';
 import { AuthService } from '../services';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/response';
 import { UnauthorizedError } from '../errors';
@@ -27,6 +28,17 @@ export async function register(req: Request, res: Response): Promise<void> {
     roleId: body.roleId,
   });
   sendCreated(res, user, 'User registered successfully');
+}
+
+export async function getUsers(_req: Request, res: Response): Promise<void> {
+  const users = await authService.getUsers();
+  sendSuccess(res, users);
+}
+
+export async function updateUser(req: Request, res: Response): Promise<void> {
+  const targetUserId = Number(req.params['id']);
+  const user = await authService.updateUser(targetUserId, req.body as AdminUpdateUserData);
+  sendSuccess(res, user, 200, 'User updated successfully');
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────

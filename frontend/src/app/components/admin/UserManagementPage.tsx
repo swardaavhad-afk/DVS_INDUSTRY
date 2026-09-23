@@ -2,8 +2,17 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Shield, Search, X } from "lucide-react";
 import { PageHeader, Card, CardHeader, StatusBadge, Btn, DataTable } from "../shared/UI";
 import { toast } from "sonner";
-import { getRoles, type RoleDto } from "../../../lib/services/users.service";
+import { isApiError } from "../../../lib/api";
+import { deactivateUser, getRoles, getUsers, registerUser, updateUser, type RoleDto, type UserDto } from "../../../lib/services/users.service";
 import { getAuditLogs } from "../../../lib/services/audit.service";
+
+type IconProps = { size?: number; color?: string };
+const PlusIcon = Plus as unknown as (props: IconProps) => JSX.Element;
+const EditIcon = Edit2 as unknown as (props: IconProps) => JSX.Element;
+const TrashIcon = Trash2 as unknown as (props: IconProps) => JSX.Element;
+const ShieldIcon = Shield as unknown as (props: IconProps) => JSX.Element;
+const SearchIcon = Search as unknown as (props: IconProps) => JSX.Element;
+const CloseIcon = X as unknown as (props: IconProps) => JSX.Element;
 
 interface User {
   id: string; name: string; email: string; role: string; dept: string;
@@ -11,7 +20,10 @@ interface User {
   _apiId?: number; _roleId?: number;
 }
 
-const roleColors: Record<string, string> = { admin: "#A52A2A", supplier: "#2E7D32", client: "#1565C0" };
+const roleColors: Record<string, string> = {
+  admin: "#A52A2A", manager: "#6A1B9A", hr: "#AD1457", production: "#E65100",
+  store: "#1565C0", sales: "#00838F", supplier: "#2E7D32", client: "#1565C0",
+};
 
 const permissions = [
   { role: "Admin", perms: ["Full system access", "User management", "Security monitoring", "Reports generation", "Order management", "Settings control"] },
@@ -27,7 +39,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
       <div className="rounded-xl overflow-hidden w-full max-w-md mx-4" style={{ background: "#fff", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #E8E2E0", background: "#F9F6F5" }}>
           <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#7A6C6A" }}><X size={18} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#7A6C6A" }}><CloseIcon size={18} /></button>
         </div>
         <div className="p-6">{children}</div>
       </div>
@@ -42,25 +54,45 @@ export function UserManagementPage() {
   const [activeTab, setActiveTab]   = useState<"users" | "permissions" | "logs">("users");
   const [search, setSearch]         = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [users]           = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles]           = useState<RoleDto[]>([]);
   const [auditLogs, setAuditLogs]   = useState<Array<{ time: string; user: string; action: string; type: string }>>([]);
   const [dataError, setDataError]   = useState("");
   const [showAdd, setShowAdd]       = useState(false);
   const [editUser, setEditUser]     = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [creatingUser, setCreatingUser] = useState(false);
   const [newUser, setNewUser]       = useState({ name: "", email: "", password: "", role: "admin", roleId: 1, dept: "Management", status: "active" });
+
+  const mapUsers = (items: UserDto[]): User[] => items.map((user) => ({
+    id: String(user.id),
+    name: user.fullName,
+    email: user.email,
+    role: user.role.name.toLowerCase(),
+    dept: "-",
+    joined: new Date(user.createdAt).toLocaleDateString("en-IN"),
+    lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleString("en-IN") : "Never",
+    status: user.isActive ? "active" : "inactive",
+    _apiId: user.id,
+    _roleId: user.role.id,
+  }));
+
+  const refreshUsers = async () => setUsers(mapUsers(await getUsers()));
 
   // ── Load from API ──────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
       getRoles(),
+      getUsers(),
       getAuditLogs({ pageSize: 20, sortOrder: "desc" }),
-    ]).then(([roleResult, logResult]) => {
+    ]).then(([roleResult, userResult, logResult]) => {
       if (cancelled) return;
       if (roleResult.status === "fulfilled") setRoles(roleResult.value);
       else setDataError("Unable to load backend roles. API error: " + (roleResult.reason instanceof Error ? roleResult.reason.message : "Unknown error"));
+      if (userResult.status === "fulfilled") {
+        setUsers(mapUsers(userResult.value));
+      } else setDataError((current) => current ? `${current} User API error: ${userResult.reason instanceof Error ? userResult.reason.message : "Unknown error"}` : "Unable to load users. API error: " + (userResult.reason instanceof Error ? userResult.reason.message : "Unknown error"));
       if (logResult.status === "fulfilled") {
         setAuditLogs(logResult.value.data.map(l => ({
           time: new Date(l.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
@@ -74,17 +106,74 @@ export function UserManagementPage() {
   }, []);
 
   const handleAdd = async () => {
-    toast.error("User creation is not supported by the current backend.");
+    const selectedRole = roles.find((role) => role.name.toLowerCase() === newUser.role);
+    if (!newUser.name.trim() || !newUser.email.trim() || !newUser.password || !selectedRole) {
+      toast.error("Complete all account fields before adding the user.");
+      return;
+    }
+
+    const normalizedEmail = newUser.email.trim().toLowerCase();
+    if (users.some((user) => user.email.toLowerCase() === normalizedEmail)) {
+      toast.error("An account with this email already exists. Use a different email address.");
+      return;
+    }
+
+    if (creatingUser) return;
+    setCreatingUser(true);
+
+    try {
+      await registerUser({
+        fullName: newUser.name.trim(),
+        email: normalizedEmail,
+        password: newUser.password,
+        roleId: selectedRole.id,
+      });
+      toast.success("User account created successfully.");
+      setShowAdd(false);
+      setNewUser({ name: "", email: "", password: "", role: "admin", roleId: 1, dept: "Management", status: "active" });
+      await refreshUsers();
+    } catch (error) {
+      const message = isApiError(error)
+        ? error.status === 409
+          ? "An account with this email already exists. Use a different email address."
+          : error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to create user account.";
+      toast.error(message);
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   const handleEdit = async () => {
     if (!editUser) return;
-    toast.error("User updates are not supported by the current backend.");
+    const selectedRole = roles.find((role) => role.name.toLowerCase() === editUser.role);
+    if (!editUser._apiId || !selectedRole || !editUser.name.trim() || !editUser.email.trim()) {
+      toast.error("Complete the user details before saving.");
+      return;
+    }
+    try {
+      await updateUser(editUser._apiId, { fullName: editUser.name.trim(), email: editUser.email.trim(), roleId: selectedRole.id });
+      toast.success("User updated successfully.");
+      setEditUser(null);
+      await refreshUsers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to update user.");
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteUser) return;
-    toast.error("User deactivation is not supported by the current frontend API.");
+    if (!deleteUser._apiId) return;
+    try {
+      await deactivateUser(deleteUser._apiId);
+      toast.success("User deactivated successfully.");
+      setDeleteUser(null);
+      await refreshUsers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to deactivate user.");
+    }
   };
 
   const filtered = users.filter(
@@ -122,7 +211,9 @@ export function UserManagementPage() {
           </div>
           <div className="flex gap-2 pt-2">
             <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: "0.6rem", border: "1px solid #E8E2E0", borderRadius: "0.5rem", background: "#fff", cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleAdd} style={{ flex: 2, padding: "0.6rem", border: "none", borderRadius: "0.5rem", background: "#A52A2A", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Add User</button>
+            <button onClick={handleAdd} disabled={creatingUser} style={{ flex: 2, padding: "0.6rem", border: "none", borderRadius: "0.5rem", background: creatingUser ? "#C9A09A" : "#A52A2A", color: "#fff", fontWeight: 600, cursor: creatingUser ? "wait" : "pointer" }}>
+              {creatingUser ? "Creating..." : "Add User"}
+            </button>
           </div>
         </div>
       </Modal>
@@ -137,9 +228,7 @@ export function UserManagementPage() {
             <div>
               <label style={labelStyle}>Role</label>
               <select style={fieldStyle} value={editUser.role} onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="supplier">Supplier</option>
-                <option value="client">Client</option>
+                {roles.map((role) => <option key={role.id} value={role.name.toLowerCase()}>{role.name}</option>)}
               </select>
             </div>
             <div>
@@ -183,7 +272,7 @@ export function UserManagementPage() {
       <PageHeader
         title="User Management"
         subtitle="Manage admin, supplier, and client accounts with role-based access control"
-        actions={<Btn size="sm" disabled title="Unavailable: current backend does not expose user listing or creation"><Plus size={14} /> Unavailable</Btn>}
+        actions={<Btn size="sm" onClick={() => setShowAdd(true)}><PlusIcon size={14} /> Add User</Btn>}
       />
 
       {dataError && <p className="mb-4" style={{ color: "#C0392B", fontSize: "0.8125rem" }}>{dataError}</p>}
@@ -210,7 +299,7 @@ export function UserManagementPage() {
         <div>
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 flex-1 min-w-48 px-3 py-2 rounded-md" style={{ background: "#fff", border: "1px solid #E8E2E0" }}>
-              <Search size={14} color="#9A8A88" />
+              <SearchIcon size={14} color="#9A8A88" />
               <input
                 placeholder="Search users..."
                 value={search}
@@ -219,7 +308,7 @@ export function UserManagementPage() {
               />
             </div>
             <div className="flex gap-1">
-              {["all", "admin", "supplier", "client"].map((r) => (
+              {["all", "admin", "manager", "hr", "production", "store", "sales", "supplier", "client"].map((r) => (
                 <button
                   key={r}
                   onClick={() => setRoleFilter(r)}
@@ -237,7 +326,7 @@ export function UserManagementPage() {
 
           <Card>
             <div className="p-5" style={{ color: "#7A6C6A", fontSize: "0.8375rem" }}>
-              User listing and account management are not supported by the current backend. Add, edit, role, and deactivation actions are unavailable.
+              New accounts are created by administrators and protected by role-based access control.
             </div>
             <DataTable
               searchable
@@ -272,8 +361,8 @@ export function UserManagementPage() {
                 status: <StatusBadge status={u.status} />,
                 actions: (
                   <div className="flex gap-1.5">
-                    <button onClick={() => setEditUser({ ...u })} className="p-1.5 rounded" style={{ background: "#F5F0EF", color: "#4E342E", cursor: "pointer", border: "none" }}><Edit2 size={12} /></button>
-                    <button onClick={() => setDeleteUser(u)} className="p-1.5 rounded" style={{ background: "#FFEBEE", color: "#C0392B", cursor: "pointer", border: "none" }}><Trash2 size={12} /></button>
+                    <button onClick={() => setEditUser({ ...u })} className="p-1.5 rounded" style={{ background: "#F5F0EF", color: "#4E342E", cursor: "pointer", border: "none" }}><EditIcon size={12} /></button>
+                    <button onClick={() => setDeleteUser(u)} className="p-1.5 rounded" style={{ background: "#FFEBEE", color: "#C0392B", cursor: "pointer", border: "none" }}><TrashIcon size={12} /></button>
                   </div>
                 ),
               }))}
@@ -290,14 +379,14 @@ export function UserManagementPage() {
                 title={`${p.role} Permissions`}
                 actions={
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${roleColors[p.role.toLowerCase()]}12` }}>
-                    <Shield size={14} color={roleColors[p.role.toLowerCase()]} />
+                    <ShieldIcon size={14} color={roleColors[p.role.toLowerCase()] ?? "#7A6C6A"} />
                   </div>
                 }
               />
               <div className="p-5">
                 {p.perms.map((perm) => (
                   <div key={perm} className="flex items-center gap-2 mb-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: roleColors[p.role.toLowerCase()] }} />
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: roleColors[p.role.toLowerCase()] ?? "#7A6C6A" }} />
                     <span style={{ fontSize: "0.8375rem", color: "#4A4A4A" }}>{perm}</span>
                   </div>
                 ))}

@@ -295,12 +295,7 @@ export async function updateClientOrder(req: AuthenticatedRequest, res: Response
   if (body.requiredDate !== undefined) data.requiredDate = body.requiredDate;
   if (body.notes !== undefined) data.notes = body.notes;
 
-  sendSuccess(
-    res,
-    await svc.updateClientOrder(id, data),
-    200,
-    'Order updated',
-  );
+  sendSuccess(res, await svc.updateClientOrder(id, data), 200, 'Order updated');
 }
 
 export async function approveClientOrder(req: Request, res: Response): Promise<void> {

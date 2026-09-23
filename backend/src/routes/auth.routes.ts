@@ -13,6 +13,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   userIdParamSchema,
+  adminUpdateUserSchema,
 } from '../validators/auth.validator';
 import { ROLES } from '../constants';
 
@@ -78,6 +79,18 @@ router.post(
   authorize(ROLES.ADMIN),
   validateRequest({ body: registerSchema }),
   asyncHandler(AuthController.register),
+);
+
+/** GET /api/v1/auth/users (Admin only) */
+router.get('/users', authenticate, authorize(ROLES.ADMIN), asyncHandler(AuthController.getUsers));
+
+/** PATCH /api/v1/auth/users/:id (Admin only) */
+router.patch(
+  '/users/:id',
+  authenticate,
+  authorize(ROLES.ADMIN),
+  validateRequest({ params: userIdParamSchema, body: adminUpdateUserSchema }),
+  asyncHandler(AuthController.updateUser),
 );
 
 /** PATCH /api/v1/auth/users/:id/deactivate  (Admin only) */

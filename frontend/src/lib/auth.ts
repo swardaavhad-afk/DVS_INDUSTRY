@@ -33,8 +33,11 @@ export type FrontendRole = 'admin' | 'production' | 'store' | 'supplier' | 'clie
 
 const BACKEND_TO_FRONTEND: Record<string, FrontendRole> = {
   ADMIN:      'admin',
+  MANAGER:    'admin',
+  HR:         'admin',
   PRODUCTION: 'production',
   STORE:      'store',
+  SALES:      'store',
   SUPPLIER:   'supplier',
   CLIENT:     'client',
 };
