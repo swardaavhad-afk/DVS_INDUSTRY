@@ -1,0 +1,39 @@
+{
+  "configuration": {
+    "model": "models\\fire_smoke_yolov8n_v1.pt",
+    "root": "data\\fire_smoke_videos\\firesense",
+    "sample_fps": 5.0,
+    "fire_threshold": 0.5,
+    "smoke_threshold": 0.5,
+    "window": 5,
+    "required": 3,
+    "imgsz": 640
+  },
+  "fire": {
+    "target": "fire",
+    "videos": 27,
+    "TP": 10,
+    "FP": 2,
+    "FN": 1,
+    "TN": 14,
+    "precision": 0.8333,
+    "recall": 0.9091,
+    "specificity": 0.875,
+    "accuracy": 0.8889,
+    "f1": 0.8696
+  },
+  "smoke": {
+    "target": "smoke",
+    "videos": 22,
+    "TP": 11,
+    "FP": 0,
+    "FN": 2,
+    "TN": 9,
+    "precision": 1.0,
+    "recall": 0.8462,
+    "specificity": 1.0,
+    "accuracy": 0.9091,
+    "f1": 0.9167
+  },
+  "failed_videos": []
+}
