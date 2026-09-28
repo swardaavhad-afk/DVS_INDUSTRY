@@ -44,3 +44,21 @@ generated/prisma/
 
 # ── Root-level lock file (not a workspace root package) ───────────
 package-lock.json
+
+# Perception service: local datasets and generated outputs
+perception-service/data/
+perception-service/output/
+
+# Python cache and test artifacts
+perception-service/__pycache__/
+perception-service/**/*.py[cod]
+perception-service/.pytest_cache/
+
+# Local logs
+perception-service/*.log
+
+# Backup files created during development
+perception-service/**/*.before-*
+
+# Local incident data
+perception-service/backend/incidents.json
