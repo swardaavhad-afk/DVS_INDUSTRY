@@ -77,7 +77,7 @@ function POModal({ prefill, suppliers, suppliersLoading, suppliersError, onClose
     supplier: prefill?.supplier || suppliers[0]?.name || "",
     material: prefill?.material || "",
     qty: prefill?.qty ? `${prefill.qty} kg` : "",
-    cost: prefill?.cost ? `₹${(prefill.qty || 0) * prefill.cost}` : "",
+    cost: prefill?.cost && prefill.qty ? `₹${prefill.qty * prefill.cost}` : "",
       expectedDel: "",
   });
   const [submitted, setSubmitted] = useState(false);
@@ -119,15 +119,15 @@ function POModal({ prefill, suppliers, suppliersLoading, suppliersError, onClose
                 className="text-left p-3 rounded-xl transition-all"
                 style={{ border: `1.5px solid ${form.supplier === s.name ? "#A52A2A" : "#E8E2E0"}`, background: form.supplier === s.name ? "#FDF5F5" : "#fff", cursor: "pointer" }}>
                 <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1C1C1C" }}>{s.name}</p>
-                <p style={{ fontSize: "0.7rem", color: "#7A6C6A" }}>★ {s.rating} · {s.delivery} · {s.reliability}</p>
+                <p style={{ fontSize: "0.7rem", color: "#7A6C6A" }}>★ {s.rating ?? "Rating unavailable"} · {s.leadTimeDays === null ? "Lead time unavailable" : `${s.leadTimeDays} days`} · {s.reliability ?? "Reliability unavailable"}</p>
               </button>
             ))}
           </div>
         </div>
         {[
-          { label: "Material *", key: "material", placeholder: "e.g. Steel Sheet 2mm" },
-          { label: "Quantity *", key: "qty", placeholder: "e.g. 500 kg" },
-          { label: "Total Cost (₹)", key: "cost", placeholder: "e.g. ₹36,000" },
+          { label: "Material *", key: "material", placeholder: "Enter material name" },
+          { label: "Quantity *", key: "qty", placeholder: "Enter quantity and unit" },
+          { label: "Total Cost (₹)", key: "cost", placeholder: "Enter total cost" },
           { label: "Expected Delivery *", key: "expectedDel", placeholder: "", type: "date" },
         ].map((f) => (
           <div key={f.key}>
@@ -313,11 +313,11 @@ function NewClientOrderModal({ clients, clientsLoading, clientsError, onClose, o
         {clientsError && <p style={{ fontSize: "0.8rem", color: "#C0392B" }}>Unable to load clients.</p>}
         {!clientsLoading && !clientsError && clients.length === 0 && <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>No clients available.</p>}
         {[
-          { label: "Client Name *", key: "client", placeholder: "e.g. Reliance Eng." },
-          { label: "Product / Part *", key: "product", placeholder: "e.g. Steel Frames 2mm" },
-          { label: "Quantity (pcs) *", key: "qty", placeholder: "e.g. 500", type: "number" },
+          { label: "Client Name *", key: "client", placeholder: "Select an existing client" },
+          { label: "Product / Part *", key: "product", placeholder: "Enter product or part" },
+          { label: "Quantity (pcs) *", key: "qty", placeholder: "Enter quantity", type: "number" },
           { label: "Required By *", key: "requiredDate", placeholder: "", type: "date" },
-          { label: "Order Value (₹)", key: "value", placeholder: "e.g. ₹1,82,000" },
+          { label: "Order Value (₹)", key: "value", placeholder: "Enter order value if available" },
         ].map((f) => (
           <div key={f.key}>
             <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>{f.label}</label>
@@ -420,6 +420,8 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  const hasOrderData = clientOrders.length > 0 || supplierOrders.length > 0;
 
   // Auto-open PO modal if navigated from Inventory with pending PO
   useEffect(() => {
@@ -526,10 +528,10 @@ export function OrdersPage({ onNavigate }: { onNavigate?: (section: string) => v
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <KPICard label="Active Client Orders" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.clientOrders.total - apiStats.clientOrders.delivered - apiStats.clientOrders.cancelled) : "Unavailable"} sub="in progress" accent="#A52A2A" />
-        <KPICard label="Pending Supplier POs" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.purchaseOrders.pending) : "Unavailable"} sub="awaiting processing" accent="#E65100" trendDir="down" />
-        <KPICard label="Dispatched Orders" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats ? String(apiStats.clientOrders.dispatched) : "Unavailable"} accent="#1565C0" />
-        <KPICard label="Fulfillment Rate" value={statsLoading ? "Loading..." : statsError ? "Unavailable" : apiStats?.fulfillmentRate ?? "Unavailable"} accent="#2E7D32" />
+        <KPICard label="Active Client Orders" value={statsLoading ? "Loading..." : statsError || !hasOrderData ? "No data available" : apiStats ? String(apiStats.clientOrders.total - apiStats.clientOrders.delivered - apiStats.clientOrders.cancelled) : "No data available"} sub="in progress" accent="#A52A2A" />
+        <KPICard label="Pending Supplier POs" value={statsLoading ? "Loading..." : statsError || !hasOrderData ? "No data available" : apiStats ? String(apiStats.purchaseOrders.pending) : "No data available"} sub="awaiting processing" accent="#E65100" trendDir="down" />
+        <KPICard label="Dispatched Orders" value={statsLoading ? "Loading..." : statsError || !hasOrderData ? "No data available" : apiStats ? String(apiStats.clientOrders.dispatched) : "No data available"} accent="#1565C0" />
+        <KPICard label="Fulfillment Rate" value={statsLoading ? "Loading..." : statsError || !hasOrderData ? "No data available" : apiStats?.fulfillmentRate ?? "No data available"} accent="#2E7D32" />
       </div>
 
       <TabBar

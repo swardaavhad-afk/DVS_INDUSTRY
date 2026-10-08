@@ -105,19 +105,27 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (s: string) => void
     kpis.overdueWorkOrders > 0
       ? { type: "warn", msg: `${kpis.overdueWorkOrders} work order(s) past scheduled end — review production` }
       : { type: "success", msg: "All work orders on schedule" },
-    kpis.criticalAlerts !== undefined && Number(kpis.criticalAlerts ?? 0) > 0
-      ? { type: "warn", msg: `${kpis.criticalAlerts} critical security alert(s) active — immediate attention required` }
-      : { type: "info", msg: "No critical security alerts active" },
-    { type: "info", msg: `Order fulfillment rate: ${kpis.orderFulfillmentRate} · Production: ${kpis.productionCompletionRate}` },
-    kpis.attendanceTodayRate
+    alerts === null
+      ? { type: "info", msg: "Security alert data unavailable" }
+      : alerts.length > 0
+        ? { type: "warn", msg: `${alerts.length} active security alert(s) require review` }
+        : { type: "info", msg: "No active security alerts" },
+    recentOrders.length > 0 || kpis.activeClientOrders > 0 || kpis.pendingClientOrders > 0
+      ? { type: "info", msg: `Order fulfillment rate: ${kpis.orderFulfillmentRate}` }
+      : { type: "info", msg: "No order data available" },
+    kpis.activeEmployees > 0
       ? { type: kpis.attendanceTodayPresent < kpis.activeEmployees * 0.8 ? "warn" : "success", msg: `Today's attendance rate: ${kpis.attendanceTodayRate} (${kpis.attendanceTodayPresent} present)` }
-      : { type: "info", msg: "Attendance data not yet recorded today" },
+      : { type: "info", msg: "Attendance not recorded" },
   ] : [];
 
   // ── KPI values (real or fallback) ──────────────────────────────────────────
 
   const hasKpis = kpis !== null;
-  const activeAlertCnt = kpis === null ? "—" : String(Number((kpis as unknown as { activeAlerts?: number }).activeAlerts ?? 0) + Number(kpis.criticalIncidents ?? 0));
+  const hasProductionData = hasKpis && (kpis.activeWorkOrders + kpis.completedWorkOrders > 0);
+  const hasEmployeeData = hasKpis && kpis.totalEmployees > 0;
+  const hasInventoryData = hasKpis && kpis.totalMaterials > 0;
+  const hasOrderData = recentOrders.length > 0 || (hasKpis && (kpis.activeClientOrders + kpis.pendingClientOrders + kpis.dispatchedOrders > 0));
+  const activeAlertCnt = alerts === null ? "Loading…" : alerts.length > 0 ? String(alerts.length) : "No active alerts";
 
   return (
     <div className="p-6">
@@ -151,14 +159,14 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (s: string) => void
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard label="Active Work Orders" value={hasKpis ? String(kpis.activeWorkOrders) : dataMessage(loading, dashboardError)} sub={hasKpis ? `Completion: ${kpis.productionCompletionRate}` : undefined} icon={Factory} />
-        <KPICard label="Production Rate" value={hasKpis ? kpis.productionCompletionRate : dataMessage(loading, dashboardError)} icon={TrendingUp} accent="#2E7D32" />
-        <KPICard label="Workers Present" value={hasKpis ? String(kpis.attendanceTodayPresent) : dataMessage(loading, dashboardError)} sub={hasKpis ? `of ${kpis.activeEmployees} active` : undefined} icon={Users} accent="#1565C0" />
-        <KPICard label="Inventory Value" value={hasKpis ? fmt(parseFloat(kpis.totalInventoryValue)) : dataMessage(loading, dashboardError)} sub={hasKpis ? `${kpis.lowStockCount} low stock` : undefined} icon={Package} accent="#4E342E" />
-        <KPICard label="Active Orders" value={hasKpis ? String(kpis.activeClientOrders) : dataMessage(loading, dashboardError)} sub={hasKpis ? `${kpis.pendingClientOrders} pending` : undefined} icon={ShoppingCart} accent="#E65100" />
-        <KPICard label="Pending POs" value={hasKpis ? String(kpis.pendingPurchaseOrders) : dataMessage(loading, dashboardError)} icon={Truck} accent="#C0392B" />
+        <KPICard label="Active Work Orders" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasProductionData ? String(kpis.activeWorkOrders) : "No production records available"} sub={hasProductionData ? `Completion: ${kpis.productionCompletionRate}` : undefined} icon={Factory} />
+        <KPICard label="Production Rate" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasProductionData ? kpis.productionCompletionRate : "No production records available"} icon={TrendingUp} accent="#2E7D32" />
+        <KPICard label="Workers Present" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasEmployeeData ? String(kpis.attendanceTodayPresent) : "No employee data available"} sub={hasEmployeeData ? `of ${kpis.activeEmployees} active` : undefined} icon={Users} accent="#1565C0" />
+        <KPICard label="Inventory Value" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasInventoryData ? fmt(parseFloat(kpis.totalInventoryValue)) : "No inventory data available"} sub={hasInventoryData ? `${kpis.lowStockCount} low stock` : undefined} icon={Package} accent="#4E342E" />
+        <KPICard label="Active Orders" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasOrderData ? String(kpis.activeClientOrders) : "No order data available"} sub={hasOrderData ? `${kpis.pendingClientOrders} pending` : undefined} icon={ShoppingCart} accent="#E65100" />
+        <KPICard label="Pending POs" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasOrderData ? String(kpis.pendingPurchaseOrders) : "No order data available"} icon={Truck} accent="#C0392B" />
         <KPICard label="Security Alerts" value={activeAlertCnt} sub={hasKpis ? `${kpis.criticalIncidents} critical` : undefined} icon={Shield} accent="#C0392B" />
-        <KPICard label="Scrap This Month" value={hasKpis ? `${parseFloat(kpis.totalScrapThisMonth).toFixed(1)} kg` : dataMessage(loading, dashboardError)} icon={AlertTriangle} accent="#E65100" />
+        <KPICard label="Scrap This Month" value={loading ? "Loading…" : dashboardError ? "Unavailable" : hasInventoryData ? `${parseFloat(kpis.totalScrapThisMonth).toFixed(1)} kg` : "No scrap records available"} icon={AlertTriangle} accent="#E65100" />
       </div>
 
       {/* Charts Row 1 */}

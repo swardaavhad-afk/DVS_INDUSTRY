@@ -44,7 +44,8 @@ function ClientDashboard({ onNavigate, data }: { onNavigate: (section: string) =
   const { profile, orders, loading, error } = data;
   const activeOrders = orders.filter((order) => !["DELIVERED", "CANCELLED"].includes(order.status));
   const completedOrders = orders.filter((order) => order.status === "DELIVERED");
-  const totalSpend = orders.reduce((sum, order) => sum + Number(order.value ?? 0), 0);
+  const hasCompleteValues = orders.length > 0 && orders.every((order) => order.value !== null);
+  const totalSpend = hasCompleteValues ? orders.reduce((sum, order) => sum + Number(order.value), 0) : null;
 
   return (
     <div className="p-6">
@@ -59,10 +60,10 @@ function ClientDashboard({ onNavigate, data }: { onNavigate: (section: string) =
       {error && <p className="mb-5" style={{ color: "#C0392B", fontSize: "0.8375rem" }}>{error}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <KPICard label="Active Orders" value={loading ? "—" : activeOrders.length} sub="in progress" accent="#A52A2A" />
-        <KPICard label="Completed Orders" value={loading ? "—" : completedOrders.length} accent="#2E7D32" />
-        <KPICard label="Pending Deliveries" value={loading ? "—" : orders.filter((order) => order.status === "DISPATCHED").length} accent="#E65100" />
-        <KPICard label="Order Value" value={loading ? "—" : formatMoney(totalSpend.toFixed(2))} accent="#4E342E" />
+        <KPICard label="Active Orders" value={loading ? "—" : orders.length === 0 ? "No data available" : activeOrders.length} sub="in progress" accent="#A52A2A" />
+        <KPICard label="Completed Orders" value={loading ? "—" : orders.length === 0 ? "No data available" : completedOrders.length} accent="#2E7D32" />
+        <KPICard label="Pending Deliveries" value={loading ? "—" : orders.length === 0 ? "No data available" : orders.filter((order) => order.status === "DISPATCHED").length} accent="#E65100" />
+        <KPICard label="Order Value" value={loading ? "—" : totalSpend === null ? "No data available" : formatMoney(totalSpend.toFixed(2))} accent="#4E342E" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
@@ -79,7 +80,7 @@ function ClientDashboard({ onNavigate, data }: { onNavigate: (section: string) =
           <div className="p-5 flex flex-col gap-3">
             <p style={{ fontSize: "0.8375rem" }}>Orders loaded: <strong>{loading ? "—" : orders.length}</strong></p>
             <p style={{ fontSize: "0.8375rem" }}>Delivered: <strong>{loading ? "—" : completedOrders.length}</strong></p>
-            <p style={{ fontSize: "0.8375rem" }}>Total order value: <strong>{loading ? "—" : formatMoney(totalSpend.toFixed(2))}</strong></p>
+            <p style={{ fontSize: "0.8375rem" }}>Total order value: <strong>{loading ? "—" : totalSpend === null ? "No data available" : formatMoney(totalSpend.toFixed(2))}</strong></p>
           </div>
         </Card>
       </div>
@@ -171,5 +172,5 @@ export function ClientApp({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  return <AppShell role="client" activeSection={section} onSectionChange={setSection} onLogout={onLogout} notificationCount={0}>{renderSection()}</AppShell>;
+  return <AppShell role="client" activeSection={section} onSectionChange={setSection} onLogout={onLogout}>{renderSection()}</AppShell>;
 }

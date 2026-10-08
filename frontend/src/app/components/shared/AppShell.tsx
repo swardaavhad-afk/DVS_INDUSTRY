@@ -1,5 +1,6 @@
 import { useState, ReactNode } from "react";
 import { useERP } from "../admin/ERPContext";
+import { getUser } from "../../../lib/auth";
 import {
   LayoutDashboard, Factory, Users, Shield, Package, ShoppingCart, BarChart3,
   Settings, LogOut, Menu, X, Bell, Search, ChevronDown, ChevronRight,
@@ -86,16 +87,20 @@ interface AppShellProps {
   onSectionChange: (section: string) => void;
   onLogout: () => void;
   children: ReactNode;
-  notificationCount?: number;
 }
 
-export function AppShell({ role, userRole, activeSection, onSectionChange, onLogout, children, notificationCount = 3 }: AppShellProps) {
+export function AppShell({ role, userRole, activeSection, onSectionChange, onLogout, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const erp = useERP();
+  const user = getUser();
+  const accountName = user?.fullName || "Account unavailable";
+  const initials = accountName === "Account unavailable"
+    ? "--"
+    : accountName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   
   // Get navigation based on userRole if it's an admin-type role
   const getNavigation = (): NavItem[] => {
@@ -180,12 +185,12 @@ export function AppShell({ role, userRole, activeSection, onSectionChange, onLog
               style={{ background: accentColor }}
             >
               <span style={{ fontSize: "0.75rem", color: "#fff", fontWeight: 600 }}>
-                {role === "admin" ? "AD" : role === "supplier" ? "SP" : "CL"}
+                {initials}
               </span>
             </div>
             <div>
               <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1C1C1C" }}>
-                {role === "admin" ? "Vikram Sharma" : role === "supplier" ? "Steel Corp Ltd" : "Reliance Eng."}
+                {accountName}
               </div>
               <div style={{ fontSize: "0.7rem", color: "#7A6C6A" }}>{roleLabels[role]}</div>
             </div>

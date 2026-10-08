@@ -12,8 +12,8 @@ import { Card, CardHeader } from "../shared/UI";
 import { toast } from "sonner";
 
 function SettingsPage() {
-  const [company, setCompany] = useState({ name: "DVS Industries", gst: "27AADFD0230G1Z2", address: "Plot B-166, MIDC Malegaon, Sinnar, Nashik, Maharashtra", iso: "ISO 9001:2015", phone: "+91 98765 43210", email: "admin@dvsindustries.com" });
-  const [prod, setProd] = useState({ dailyTarget: "420", scrapThreshold: "5", efficiency: "95", shiftStart: "06:00", shiftEnd: "14:00" });
+  const [company, setCompany] = useState({ name: "", gst: "", address: "", iso: "", phone: "", email: "" });
+  const [prod, setProd] = useState({ dailyTarget: "", scrapThreshold: "", efficiency: "", shiftStart: "", shiftEnd: "" });
   const [notif, setNotif] = useState({ stockAlert: true, securityAlert: true, orderAlert: true, attendanceAlert: false, emailDigest: true });
   const [saved, setSaved] = useState(false);
 
@@ -53,7 +53,7 @@ function SettingsPage() {
     <div className="p-6 max-w-4xl">
       <div className="mb-6">
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#1C1C1C" }}>Settings</h1>
-        <p style={{ fontSize: "0.8375rem", color: "#7A6C6A", marginTop: "0.2rem" }}>System configuration and preferences</p>
+        <p style={{ fontSize: "0.8375rem", color: "#7A6C6A", marginTop: "0.2rem" }}>System configuration is not available from the current backend.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -61,6 +61,7 @@ function SettingsPage() {
         <Card>
           <CardHeader title="Company Profile" subtitle="Factory identity and contact info" />
           <div className="p-5 flex flex-col gap-4">
+            <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>Awaiting verified DVS Industries company profile data.</p>
             {field("Company Name", company.name, (v) => setCompany((c) => ({ ...c, name: v })))}
             {field("GST Number", company.gst, (v) => setCompany((c) => ({ ...c, gst: v })))}
             {field("ISO Certification", company.iso, (v) => setCompany((c) => ({ ...c, iso: v })))}
@@ -81,14 +82,12 @@ function SettingsPage() {
         <Card>
           <CardHeader title="Production Targets" subtitle="Daily goals and thresholds" />
           <div className="p-5 flex flex-col gap-4">
+            <p style={{ fontSize: "0.8rem", color: "#7A6C6A" }}>Production targets and shift timings are not configured in the current database.</p>
             {field("Daily Production Target (pcs)", prod.dailyTarget, (v) => setProd((p) => ({ ...p, dailyTarget: v }), "number"))}
             {field("Scrap Threshold (%)", prod.scrapThreshold, (v) => setProd((p) => ({ ...p, scrapThreshold: v }), "number"))}
             {field("Min Efficiency Target (%)", prod.efficiency, (v) => setProd((p) => ({ ...p, efficiency: v }), "number"))}
             {field("Morning Shift Start", prod.shiftStart, (v) => setProd((p) => ({ ...p, shiftStart: v }), "time"))}
             {field("Morning Shift End", prod.shiftEnd, (v) => setProd((p) => ({ ...p, shiftEnd: v }), "time"))}
-            <div className="p-3 rounded-lg" style={{ background: "#FFF8E1", border: "1px solid #FFE082" }}>
-              <p style={{ fontSize: "0.75rem", color: "#E65100" }}>⚠ Changing production targets will recalculate all efficiency KPIs from today forward.</p>
-            </div>
           </div>
         </Card>
 
@@ -109,9 +108,9 @@ function SettingsPage() {
           <CardHeader title="System Information" subtitle="Platform version and status" />
           <div className="p-5 flex flex-col gap-3">
             {[
-              ["Platform Version", "DVS SmartFactory v2.4.1"],
-              ["Build Date", "14 July 2026"],
-              ["Database", "PostgreSQL 15 (Cloud)"],
+              ["Platform Version", "Unavailable"],
+              ["Build Date", "Unavailable"],
+              ["Database", "Unavailable from settings API"],
               ["API Status", "Unavailable — no runtime status source"],
               ["Last Backup", "Unavailable — no backup status source"],
               ["Face Recognition API", "Unavailable — no status source"],
@@ -129,11 +128,12 @@ function SettingsPage() {
       <div className="mt-5 flex items-center gap-3">
         <button
           onClick={handleSave}
+          disabled
           style={{ padding: "0.625rem 2rem", borderRadius: "0.5rem", background: saved ? "#2E7D32" : "#A52A2A", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem", transition: "background 0.2s" }}
         >
-          {saved ? "✓ Saved" : "Save Changes"}
+          {saved ? "✓ Saved" : "Persistence unavailable"}
         </button>
-        <span style={{ fontSize: "0.8rem", color: "#9A8A88" }}>UI-only changes; persistence is unavailable</span>
+        <span style={{ fontSize: "0.8rem", color: "#9A8A88" }}>No settings API is configured.</span>
       </div>
     </div>
   );
@@ -181,7 +181,7 @@ export function AdminApp({ onLogout, userRole }: AdminAppProps) {
 
   return (
     <ERPProvider>
-      <AppShell role="admin" userRole={userRole} activeSection={section} onSectionChange={setSection} onLogout={onLogout} notificationCount={0}>
+      <AppShell role="admin" userRole={userRole} activeSection={section} onSectionChange={setSection} onLogout={onLogout}>
         {renderSection()}
       </AppShell>
     </ERPProvider>

@@ -106,6 +106,12 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
     const Wp = parseFloat(inputs.weightReceived);   // Raw material received (kg)
     const M = parseFloat(inputs.materialPerPart);   // Material per part (kg)
     const batchQty = inputs.batchQty ? parseInt(inputs.batchQty) : null;
+    const material = materials.find((item) => item.name === inputs.materialType);
+    if (!material) {
+      setErrors((current) => ({ ...current, materialType: "Select a real inventory material" }));
+      setRunning(false);
+      return;
+    }
 
     // ── Core production model ──
     const maxPartsFromMaterial = Math.floor(Wp / M);
@@ -115,8 +121,7 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
     const materialRemaining = parseFloat((Wp - materialConsumed).toFixed(3));
     const utilizationPct = parseFloat(((materialConsumed / Wp) * 100).toFixed(2));
 
-    const material = materials.find((item) => item.name === inputs.materialType);
-    const invBefore = material?.qty ?? 0;
+    const invBefore = material.qty;
     const inventoryBalance = Math.max(0, parseFloat((invBefore - Wp).toFixed(2)));
 
     const { label: efficiencyRating, color: efficiencyColor } = getEfficiencyRating(utilizationPct);
@@ -257,17 +262,18 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
                   Raw Material Parameters
                 </p>
                 <div className="flex flex-col gap-3.5">
-                  <Field label="Raw Material Type" required>
-                    <select
-                      name="materialType"
-                      value={inputs.materialType}
-                      onChange={(e) => setField("materialType")(e.target.value)}
-                      disabled={materials.length === 0}
-                      style={{ ...inputStyle(), cursor: "pointer" }}
-                      onFocus={onFocus} onBlur={onBlur}
-                    >
-                      {materials.length === 0 ? <option value="">Unavailable</option> : materials.map((m) => <option key={m.apiId} value={m.name}>{m.name}</option>)}
-                    </select>
+                  <Field label="Raw Material Type" required error={errors.materialType}>
+                      <select
+                        name="materialType"
+                        value={inputs.materialType}
+                        onChange={(e) => setField("materialType")(e.target.value)}
+                        disabled={materials.length === 0}
+                        style={{ ...inputStyle(), cursor: "pointer" }}
+                        onFocus={onFocus} onBlur={onBlur}
+                      >
+                        <option value="">Select a real material</option>
+                        {materials.length === 0 ? <option value="">Unavailable</option> : materials.map((m) => <option key={m.apiId} value={m.name}>{m.name}</option>)}
+                      </select>
                     {/* Live stock badge */}
                     {materials.find((m) => m.name === inputs.materialType) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
@@ -340,17 +346,16 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
                 <p style={{ fontSize: "0.67rem", fontWeight: 700, color: "#A52A2A", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "0.875rem" }}>
                   Production Assignment
                 </p>
-                <Field label="Operator / Production Lead" required error={errors.operator}>
-                  <select
+                  <Field label="Operator / Production Lead" required error={errors.operator}>
+                  <input
                     name="operator"
+                    type="text"
                     value={inputs.operator}
                     onChange={(e) => setField("operator")(e.target.value)}
-                    style={{ ...inputStyle(errors.operator), cursor: "pointer" }}
+                    placeholder="Enter the real operator or production lead"
+                    style={inputStyle(errors.operator)}
                     onFocus={onFocus} onBlur={onBlur}
-                  >
-                    <option value="">Select operator</option>
-                    <option value="Unavailable">Unavailable</option>
-                  </select>
+                  />
                 </Field>
               </div>
 
@@ -549,7 +554,7 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
                   <p style={{ fontSize: "0.72rem", color: "#9A8A88", marginBottom: "1rem" }}>Stock before and after production run</p>
                   <div className="flex flex-col gap-3">
                     {[
-                      { label: "Before Production", value: materials.find((m) => m.name === inputs.materialType)?.qty ?? 0, color: "#4E342E" },
+                      { label: "Before Production", value: materials.find((m) => m.name === inputs.materialType)?.qty, color: "#4E342E" },
                       { label: "Material Consumed", value: parseFloat(inputs.weightReceived), color: "#A52A2A", negative: true },
                       { label: "After Production Preview", value: result.inventoryBalance, color: "#4E342E" },
                     ].map((row) => {
@@ -558,10 +563,10 @@ function ProductionCalculator({ materials }: { materials: InventoryMaterial[] })
                         <div key={row.label}>
                           <div className="flex justify-between mb-1">
                             <span style={{ fontSize: "0.775rem", color: "#4A4A4A" }}>{row.label}</span>
-                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: row.color }}>{row.value.toFixed(1)} kg</span>
+                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: row.color }}>{row.value === undefined ? unavailable : `${row.value.toFixed(1)} kg`}</span>
                           </div>
                           <div style={{ height: "7px", background: "#F0ECEB", borderRadius: "99px", overflow: "hidden" }}>
-                            <div style={{ width: `${Math.min(100, (row.value / maxVal) * 100)}%`, height: "100%", background: row.color, borderRadius: "99px", transition: "width 0.6s ease" }} />
+                            {row.value !== undefined && <div style={{ width: `${Math.min(100, (row.value / maxVal) * 100)}%`, height: "100%", background: row.color, borderRadius: "999px", transition: "width 0.6s ease" }} />}
                           </div>
                         </div>
                       );
@@ -642,7 +647,7 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
-  const [newMat, setNewMat]             = useState({ name: "", category: "Steel", thickness: "", qty: "", cost: "", threshold: "", location: "" });
+  const [newMat, setNewMat]             = useState({ name: "", category: "", thickness: "", unit: "", qty: "", cost: "", threshold: "", location: "" });
 
   // ── Load from API ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -665,9 +670,10 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
   }, []);
 
   // ── Derived values ─────────────────────────────────────────────────────────
-  const totalValue = apiStats ? parseFloat(apiStats.totalStockValue) : null;
-  const lowStock = apiStats?.lowStockCount ?? null;
-  const totalMaterials = apiStats?.activeMaterials ?? null;
+  const hasInventoryData = materials.length > 0;
+  const totalValue = apiStats && hasInventoryData ? parseFloat(apiStats.totalStockValue) : null;
+  const lowStock = apiStats && hasInventoryData ? apiStats.lowStockCount : null;
+  const totalMaterials = apiStats && hasInventoryData ? apiStats.activeMaterials : null;
   const categoryChartData = apiStats?.byCategory.map((entry, index) => ({
     name: entry.category,
     value: entry.stockValue,
@@ -684,14 +690,17 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
   };
 
   const handleAddMaterial = async () => {
-    if (!newMat.name || !newMat.qty || !newMat.cost) return;
+    if (!newMat.name || !newMat.unit || !newMat.qty || !newMat.cost || !newMat.threshold) {
+      toast.error("Material name, unit, quantity, cost, and minimum threshold are required.");
+      return;
+    }
     const qty = parseFloat(newMat.qty);
-    const threshold = parseInt(newMat.threshold) || 50;
+    const threshold = parseFloat(newMat.threshold);
     try {
       const code = newMat.name.toUpperCase().replace(/[^A-Z0-9]/g, "-").slice(0, 20);
       const created = await createMaterial({
-        name: newMat.name, code, unit: "kg",
-        category: newMat.category,
+        name: newMat.name, code, unit: newMat.unit,
+        category: newMat.category || null,
         location: newMat.location || null,
         minStockLevel: String(threshold),
         costPerUnit: newMat.cost,
@@ -701,7 +710,7 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
       }
       const refreshed = await getMaterials({ pageSize: 100, status: "active" });
       setMaterials(refreshed.data.map(toInventoryMaterial));
-      setNewMat({ name: "", category: "Steel", thickness: "", qty: "", cost: "", threshold: "", location: "" });
+      setNewMat({ name: "", category: "", thickness: "", unit: "", qty: "", cost: "", threshold: "", location: "" });
       setShowAddMaterial(false);
       toast.success(`Material "${newMat.name}" added to inventory`);
     } catch (error) {
@@ -717,9 +726,10 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
           {[
             { label: "Material Name *", key: "name", placeholder: "e.g. Steel Sheet 3mm" },
             { label: "Thickness", key: "thickness", placeholder: "e.g. 3mm" },
-            { label: "Quantity (kg) *", key: "qty", placeholder: "e.g. 500", type: "number" },
-            { label: "Cost per kg (₹) *", key: "cost", placeholder: "e.g. 72", type: "number" },
-            { label: "Min Threshold (kg)", key: "threshold", placeholder: "e.g. 200", type: "number" },
+            { label: "Unit *", key: "unit", placeholder: "Enter unit" },
+            { label: "Quantity *", key: "qty", placeholder: "Enter current quantity", type: "number" },
+            { label: "Cost per unit (₹) *", key: "cost", placeholder: "Enter cost per unit", type: "number" },
+            { label: "Minimum threshold *", key: "threshold", placeholder: "Enter minimum stock", type: "number" },
             { label: "Location", key: "location", placeholder: "e.g. WH-A Row 5" },
           ].map((f) => (
             <div key={f.key}>
@@ -735,6 +745,7 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
             <label style={{ display: "block", fontSize: "0.775rem", fontWeight: 600, color: "#4A4A4A", marginBottom: "0.3rem" }}>Category</label>
             <select value={newMat.category} onChange={(e) => setNewMat((p) => ({ ...p, category: e.target.value }))}
               style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #D4BFBB", borderRadius: "0.375rem", fontSize: "0.8375rem", outline: "none" }}>
+              <option value="">Select category if known</option>
               {["Steel", "Aluminium", "Copper", "Other"].map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
@@ -906,36 +917,14 @@ export function InventoryPage({ onNavigate }: { onNavigate?: (section: string) =
                   <p style={{ fontSize: "0.9rem", fontWeight: 600 }}>Scrap by Department</p>
                   <p style={{ fontSize: "0.775rem", color: "#7A6C6A" }}>kg today</p>
                 </div>
-                <div className="p-5">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={[]}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0ECEB" />
-                      <XAxis dataKey="dept" tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ fontSize: "0.8rem" }} />
-                      <Bar dataKey="kg" fill="#A52A2A" radius={[3, 3, 0, 0]} name="Scrap (kg)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <p style={{ fontSize: "0.8375rem", color: "#7A6C6A", marginTop: "0.75rem" }}>No department-level scrap data available.</p>
-                </div>
+                <div className="p-5"><p style={{ fontSize: "0.8375rem", color: "#7A6C6A" }}>No department-level scrap data available.</p></div>
               </div>
               <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #E8E2E0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
                 <div className="px-5 py-4" style={{ borderBottom: "1px solid #F0ECEB" }}>
                   <p style={{ fontSize: "0.9rem", fontWeight: 600 }}>Weekly Scrap Trend</p>
                   <p style={{ fontSize: "0.775rem", color: "#7A6C6A" }}>Daily scrap (kg)</p>
                 </div>
-                <div className="p-5">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={[]}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0ECEB" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ fontSize: "0.8rem" }} />
-                      <Line type="monotone" dataKey="scrap" stroke="#A52A2A" strokeWidth={2} name="Scrap (kg)" dot={{ r: 4, fill: "#A52A2A" }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  <p style={{ fontSize: "0.8375rem", color: "#7A6C6A", marginTop: "0.75rem" }}>No scrap trend data available.</p>
-                </div>
+                <div className="p-5"><p style={{ fontSize: "0.8375rem", color: "#7A6C6A" }}>No scrap trend data available.</p></div>
               </div>
             </div>
             <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #E8E2E0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>

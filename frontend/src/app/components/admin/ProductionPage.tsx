@@ -126,6 +126,8 @@ export function ProductionPage() {
   );
 
   const departmentAttendance = attendanceSummary?.byDepartment ?? [];
+  const hasProductionData = workOrders.length > 0;
+  const hasAttendanceData = attendanceLog.length > 0;
 
   return (
     <div className="p-6">
@@ -176,10 +178,10 @@ export function ProductionPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-              <KPICard label="Active Work Orders" value={kpisLoading ? "Loading..." : kpisError ? unavailable : kpis ? String(kpis.activeWorkOrders) : unavailable} sub={kpis ? `${kpis.completedThisMonth} completed this month` : undefined} />
-              <KPICard label="Produced (This Month)" value={kpisLoading ? "Loading..." : kpisError ? unavailable : kpis?.totalProducedQty ?? unavailable} trend={kpis?.overallCompletionRate} trendDir={kpis ? "up" : undefined} accent="#2E7D32" />
-              <KPICard label="Completion Rate" value={kpisLoading ? "Loading..." : kpisError ? unavailable : kpis?.overallCompletionRate ?? unavailable} accent="#1565C0" />
-              <KPICard label="Rejection Rate" value={kpisLoading ? "Loading..." : kpisError ? unavailable : kpis?.rejectionRate ?? unavailable} sub={kpis ? `${kpis.overdueWorkOrders} overdue WOs` : undefined} accent="#E65100" trendDir={kpis ? "down" : undefined} />
+              <KPICard label="Active Work Orders" value={kpisLoading ? "Loading..." : kpisError || !hasProductionData ? "No production records available" : kpis ? String(kpis.activeWorkOrders) : unavailable} sub={kpis && hasProductionData ? `${kpis.completedThisMonth} completed this month` : undefined} />
+              <KPICard label="Produced (This Month)" value={kpisLoading ? "Loading..." : kpisError || !hasProductionData ? "No production records available" : kpis?.totalProducedQty ?? unavailable} trend={hasProductionData ? kpis?.overallCompletionRate : undefined} trendDir={hasProductionData ? "up" : undefined} accent="#2E7D32" />
+              <KPICard label="Completion Rate" value={kpisLoading ? "Loading..." : kpisError || !hasProductionData ? "No production records available" : kpis?.overallCompletionRate ?? unavailable} accent="#1565C0" />
+              <KPICard label="Rejection Rate" value={kpisLoading ? "Loading..." : kpisError || !hasProductionData ? "No production records available" : kpis?.rejectionRate ?? unavailable} sub={kpis && hasProductionData ? `${kpis.overdueWorkOrders} overdue WOs` : undefined} accent="#E65100" trendDir={hasProductionData ? "down" : undefined} />
             </div>
 
             <Card className="mb-5">
@@ -284,10 +286,10 @@ export function ProductionPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-              <KPICard label="Present Today" value={attendanceLoading ? "Loading..." : attendanceError ? unavailable : attendanceSummary ? String(attendanceSummary.present) : unavailable} trend={attendanceSummary?.attendanceRate} trendDir={attendanceSummary ? "up" : undefined} accent="#2E7D32" />
-              <KPICard label="Absent" value={attendanceLoading ? "Loading..." : attendanceError ? unavailable : attendanceSummary ? String(attendanceSummary.absent) : unavailable} accent="#C0392B" />
-              <KPICard label="Late Arrival" value={attendanceLoading ? "Loading..." : attendanceError ? unavailable : attendanceSummary ? String(attendanceSummary.late) : unavailable} accent="#E65100" />
-              <KPICard label="On Leave" value={attendanceLoading ? "Loading..." : attendanceError ? unavailable : attendanceSummary ? String(attendanceSummary.onLeave) : unavailable} accent="#1565C0" />
+              <KPICard label="Present Today" value={attendanceLoading ? "Loading..." : attendanceError || !hasAttendanceData ? "Attendance not recorded" : attendanceSummary ? String(attendanceSummary.present) : unavailable} trend={hasAttendanceData ? attendanceSummary?.attendanceRate : undefined} trendDir={hasAttendanceData ? "up" : undefined} accent="#2E7D32" />
+              <KPICard label="Absent" value={attendanceLoading ? "Loading..." : attendanceError || !hasAttendanceData ? "Attendance not recorded" : attendanceSummary ? String(attendanceSummary.absent) : unavailable} accent="#C0392B" />
+              <KPICard label="Late Arrival" value={attendanceLoading ? "Loading..." : attendanceError || !hasAttendanceData ? "Attendance not recorded" : attendanceSummary ? String(attendanceSummary.late) : unavailable} accent="#E65100" />
+              <KPICard label="On Leave" value={attendanceLoading ? "Loading..." : attendanceError || !hasAttendanceData ? "Attendance not recorded" : attendanceSummary ? String(attendanceSummary.onLeave) : unavailable} accent="#1565C0" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
@@ -320,17 +322,17 @@ export function ProductionPage() {
                 <CardHeader title="Department Attendance Rate" subtitle={attendanceLoading ? "Loading attendance data..." : attendanceError ? "Unable to load attendance data" : departmentAttendance.length > 0 ? "From attendance summary API" : "No data available"} />
                 <div className="p-5">
                   {attendanceLoading ? <p style={{ fontSize: "0.8375rem", color: "#7A6C6A" }}>Loading attendance data...</p> : attendanceError ? <p style={{ fontSize: "0.8375rem", color: "#C0392B" }}>Unable to load attendance data.</p> : departmentAttendance.length > 0 ? departmentAttendance.map((d) => {
-                    const rate = d.total > 0 ? (d.present / d.total) * 100 : 0;
+                    const rate = d.total > 0 ? (d.present / d.total) * 100 : null;
                     return (
                       <div key={d.departmentId} className="mb-3">
                         <div className="flex justify-between mb-1">
                           <span style={{ fontSize: "0.8125rem", color: "#4A4A4A" }}>{d.departmentName}</span>
-                          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: rate >= 97 ? "#2E7D32" : rate >= 94 ? "#E65100" : "#C0392B" }}>
-                            {rate.toFixed(1)}%
+                          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: rate === null ? "#7A6C6A" : rate >= 97 ? "#2E7D32" : rate >= 94 ? "#E65100" : "#C0392B" }}>
+                            {rate === null ? unavailable : `${rate.toFixed(1)}%`}
                           </span>
                         </div>
                         <div style={{ height: "6px", background: "#F0ECEB", borderRadius: "999px", overflow: "hidden" }}>
-                          <div style={{ width: `${rate}%`, height: "100%", background: rate >= 97 ? "#2E7D32" : rate >= 94 ? "#E65100" : "#C0392B", borderRadius: "999px" }} />
+                          <div style={{ width: rate === null ? "0%" : `${rate}%`, height: "100%", background: rate === null ? "#D4BFBB" : rate >= 97 ? "#2E7D32" : rate >= 94 ? "#E65100" : "#C0392B", borderRadius: "999px" }} />
                         </div>
                       </div>
                     );

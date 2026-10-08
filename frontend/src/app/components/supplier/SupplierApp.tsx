@@ -46,7 +46,8 @@ function SupplierDashboard({ onNavigate, data }: { onNavigate: (s: string) => vo
   const { profile, purchaseOrders, loading, error } = data;
   const pending = purchaseOrders.filter((po) => po.status === "PENDING").length;
   const delivered = purchaseOrders.filter((po) => po.status === "DELIVERED").length;
-  const procurementTotal = purchaseOrders.reduce((sum, po) => sum + Number(po.totalCost ?? 0), 0);
+  const hasCompleteCosts = purchaseOrders.length > 0 && purchaseOrders.every((po) => po.totalCost !== null);
+  const procurementTotal = hasCompleteCosts ? purchaseOrders.reduce((sum, po) => sum + Number(po.totalCost), 0) : null;
   const recentOrders = purchaseOrders.slice(0, 3);
 
   return (
@@ -63,10 +64,10 @@ function SupplierDashboard({ onNavigate, data }: { onNavigate: (s: string) => vo
       {error && <p className="mb-5" style={{ color: "#C0392B", fontSize: "0.8375rem" }}>{error}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
-        <KPICard label="Active Orders" value={loading ? "—" : String(purchaseOrders.length - delivered)} sub="from DVS" accent="#2E7D32" />
-        <KPICard label="Pending Deliveries" value={loading ? "—" : String(pending)} accent="#E65100" />
-        <KPICard label="Completed Orders" value={loading ? "—" : String(delivered)} accent="#2E7D32" />
-        <KPICard label="Procurement Total" value={loading ? "—" : formatMoney(procurementTotal.toFixed(2))} accent="#4E342E" />
+        <KPICard label="Active Orders" value={loading ? "—" : purchaseOrders.length === 0 ? "No data available" : String(purchaseOrders.length - delivered)} sub="from DVS" accent="#2E7D32" />
+        <KPICard label="Pending Deliveries" value={loading ? "—" : purchaseOrders.length === 0 ? "No data available" : String(pending)} accent="#E65100" />
+        <KPICard label="Completed Orders" value={loading ? "—" : purchaseOrders.length === 0 ? "No data available" : String(delivered)} accent="#2E7D32" />
+        <KPICard label="Procurement Total" value={loading ? "—" : procurementTotal === null ? "No data available" : formatMoney(procurementTotal.toFixed(2))} accent="#4E342E" />
         <KPICard label="Materials Supplied" value="—" sub="Not available in API" accent="#1565C0" />
       </div>
 
@@ -232,15 +233,7 @@ function SupplierPerformance({ data }: { data: SupplierData }) {
       <Card>
         <CardHeader title="On-Time Delivery Trend" />
         <div className="p-5">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={[]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F0ECEB" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#9A8A88" }} axisLine={false} tickLine={false} domain={[88, 100]} />
-              <Tooltip contentStyle={{ fontSize: "0.8rem" }} formatter={(v) => [`${v}%`]} />
-            </LineChart>
-          </ResponsiveContainer>
-          <EmptyState message="Historical performance trend is not provided by the existing backend." />
+          <p style={{ fontSize: "0.7rem", color: "#7A6C6A" }}>★ {s.rating ?? "Rating unavailable"} · {s.leadTimeDays === null ? "Lead time unavailable" : `${s.leadTimeDays} days`} · {s.reliability ?? "Reliability unavailable"}</p>
         </div>
       </Card>
     </div>
@@ -299,7 +292,7 @@ export function SupplierApp({ onLogout }: { onLogout: () => void }) {
   };
 
   return (
-    <AppShell role="supplier" activeSection={section} onSectionChange={setSection} onLogout={onLogout} notificationCount={3}>
+    <AppShell role="supplier" activeSection={section} onSectionChange={setSection} onLogout={onLogout}>
       {renderSection()}
     </AppShell>
   );
